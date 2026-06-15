@@ -5,7 +5,7 @@ Living progress tracker. Updated at the end of every phase. Read this alongside 
 ---
 
 ## Current Phase
-**Phase 0 — Validation Gate + Scaffold** | Status: **IN PROGRESS**
+**Phase 1 — Data Foundation** | Status: **AWAITING OWNER APPROVAL TO START**
 
 ---
 
@@ -13,7 +13,7 @@ Living progress tracker. Updated at the end of every phase. Read this alongside 
 
 | Phase | Status | Date | Commit |
 |-------|--------|------|--------|
-| 0 | IN PROGRESS | 2026-06-15 | — |
+| 0 | COMPLETE | 2026-06-15 | 699beb2 |
 
 ---
 
