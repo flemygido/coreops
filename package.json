@@ -18,10 +18,13 @@
     "prepare": "husky"
   },
   "devDependencies": {
+    "@supabase/supabase-js": "^2.108.2",
     "eslint": "^9.0.0",
     "husky": "^9.0.0",
     "lint-staged": "^15.0.0",
     "prettier": "^3.0.0",
+    "supabase": "^2.106.0",
+    "tsx": "^4.22.4",
     "typescript": "^5.0.0",
     "typescript-eslint": "^8.0.0"
   },

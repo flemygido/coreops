@@ -8,7 +8,7 @@ on:
 
 jobs:
   lint-typecheck-test:
-    name: Lint · Type-check · Test
+    name: Lint · Type-check · Unit Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,8 +27,40 @@ jobs:
       - name: Type-check
         run: npm run type-check
 
-      - name: Test
+      - name: Unit tests
         run: npm test
+
+  integration-rls:
+    name: Integration Tests (RLS isolation)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # supabase start automatically applies all migrations
+      - name: Start Supabase local
+        run: npx supabase start
+
+      - name: Capture local credentials
+        run: |
+          STATUS=$(npx supabase status --output json)
+          echo "SUPABASE_URL=$(echo $STATUS | jq -r '.API_URL')" >> $GITHUB_ENV
+          echo "SUPABASE_ANON_KEY=$(echo $STATUS | jq -r '.ANON_KEY')" >> $GITHUB_ENV
+          echo "SUPABASE_SERVICE_ROLE_KEY=$(echo $STATUS | jq -r '.SERVICE_ROLE_KEY')" >> $GITHUB_ENV
+
+      - name: Run RLS integration tests
+        run: npm test -w apps/api
 
   secrets-scan:
     name: Secrets Scan

@@ -5,71 +5,78 @@ Living progress tracker. Updated at the end of every phase. Read this alongside 
 ---
 
 ## Current Phase
-**Phase 1 — Data Foundation** | Status: **AWAITING OWNER APPROVAL TO START**
+
+**Phase 2 — Core Backend & APIs** | Status: **AWAITING OWNER APPROVAL TO START**
 
 ---
 
 ## Phase History
 
-| Phase | Status | Date | Commit |
-|-------|--------|------|--------|
-| 0 | COMPLETE | 2026-06-15 | 699beb2 |
+| Phase | Status   | Date       | Commit         |
+| ----- | -------- | ---------- | -------------- |
+| 0     | COMPLETE | 2026-06-15 | f1e446d        |
+| 1     | COMPLETE | 2026-06-15 | (pending push) |
 
 ---
 
-## Phase 0 Checklist
+## Phase 1 Checklist ✅
 
 ### Prerequisite Research
-- [x] Node.js current LTS: v24.15.0 (v24 active LTS; v26 Current but not yet LTS until Oct 2026)
-- [x] Fastify current stable: v5.8.5
-- [x] Supabase JS client current: @supabase/supabase-js v2.108.1
-- [x] WhatsApp Cloud API pricing verified: per-message since 1 Jul 2025; utility/service inside CSW = free
-- [x] DPDP Rules 2025: passed Nov 2025; key obligations documented in CLAUDE.md
 
-### Foundation Files
-- [x] CLAUDE.md created with all §0 items locked or marked ASSUMED+RISK
-- [x] PROGRESS.md created
-- [x] /docs/adr/ created; ADR-0001 written
+- [x] Supabase RLS best practices (current)
+- [x] Postgres schema patterns for multi-tenant-ready single-tenant
+- [x] DPDP Rules 2025 schema requirements (consent, audit)
+- [x] Supabase CLI + local Docker setup verified
 
-### Repo Scaffold
-- [x] Folder structure created (apps/api, packages/shared, docs/adr, .github/workflows)
-- [x] Root package.json (npm workspaces)
-- [x] tsconfig.base.json
-- [x] eslint.config.js (ESLint 9 flat config + typescript-eslint)
-- [x] .prettierrc
-- [x] .env.example (no secrets)
-- [x] .gitignore
-- [x] .nvmrc (Node 24)
-- [x] apps/api scaffold (package.json, tsconfig, vitest config, src/index.ts)
-- [x] apps/api placeholder test
-- [x] packages/shared scaffold
-- [x] .husky/pre-commit hook
-- [x] .github/workflows/ci.yml (lint + type-check + test + secrets scan)
-- [x] README.md
+### Schema & Migrations
 
-### Validation
-- [x] `npm install` runs successfully (0 vulnerabilities; vitest pinned to ^4.0.0)
-- [x] `npm run lint` passes (zero errors)
-- [x] `npm run type-check` passes (zero errors, both workspaces)
-- [x] `npm test` passes (vitest v4.1.9; 1 passed)
-- [ ] Pre-commit hook functional (requires `git init` first — not yet a git repo)
-- [ ] Owner has reviewed and approved Phase 0
+- [x] `20260615000001_schema.sql` — 9 tables (businesses, connected_accounts, customers, invoices, payments, briefings, follow_ups, audit_log, consent_records)
+- [x] `20260615000002_rls.sql` — RLS enabled on all tables; helper function `get_current_business_id()`
+- [x] `20260615000003_indexes.sql` — Performance indexes for receivables query patterns
+- [x] `20260615000004_triggers.sql` — `updated_at` auto-update; audit log trigger (strips credentials)
+- [x] `20260615000005_grants.sql` — GRANT/REVOKE for `authenticated` and `anon` roles
+- [x] All 5 migrations apply cleanly via `supabase db reset`
+
+### TypeScript
+
+- [x] `packages/shared/src/types/schema.ts` — full schema type definitions
+- [x] `packages/shared/src/overdue.ts` — deterministic overdue calculator (no LLM)
+- [x] `packages/shared/src/__tests__/overdue.test.ts` — 20 unit tests (all edge cases)
+- [x] `apps/api/src/lib/crypto.ts` — AES-256-GCM encrypt/decrypt for credentials
+- [x] `apps/api/src/__tests__/crypto.test.ts` — 6 crypto unit tests
+
+### Integration Test (RLS isolation)
+
+- [x] `apps/api/src/__tests__/rls.integration.test.ts` — 5 RLS isolation tests
+- [x] Test proven: tenant A cannot read tenant B's invoices, customers, or business
+- [x] Automatically skipped when SUPABASE_URL is not set (safe in CI without Supabase)
+
+### Seed Data
+
+- [x] `scripts/seed.ts` — TypeScript generator (no real PII)
+- [x] `supabase/seed.sql` — generated: 10 customers, 27 invoices, 12 payments, 13 overdue
+
+### All Checks
+
+- [x] `npm run lint` — zero errors
+- [x] `npm run type-check` — zero errors (all workspaces)
+- [x] `npm test` — 32 tests passed (12 API + 20 shared), 0 failures
+- [x] `supabase db reset` — all migrations + seed apply cleanly
 
 ---
 
 ## Open Questions / Blockers
 
-| # | Question / Blocker | Priority | Status |
-|---|--------------------|----------|--------|
-| 1 | **RISK #1:** No confirmed paying customer — strategy is "publish to attract" | High | Open — blocks Phase 7 only (not earlier phases) |
-| 2 | Does the pilot use Zoho Books or Tally? (affects Phase 3 integration scope) | High | Awaiting owner input |
-| 3 | Pilot owner's WhatsApp number and WABA account status | Medium | Awaiting owner input — needed for Phase 7 onboarding |
-| 4 | Is a GitHub repo already created, or does one need to be set up? | Medium | Awaiting owner input — needed to push and get CI green |
+| #   | Question / Blocker                                                           | Priority | Status                                       |
+| --- | ---------------------------------------------------------------------------- | -------- | -------------------------------------------- |
+| 1   | **RISK #1:** No confirmed paying customer — strategy is "publish to attract" | High     | Open — blocks Phase 7 only                   |
+| 2   | Does the pilot use Zoho Books or Tally? (affects Phase 3 integration scope)  | High     | Awaiting owner input                         |
+| 3   | RLS integration test needs SUPABASE_URL in CI secrets (Phase 7 work)         | Medium   | Noted — CI job will skip until secrets added |
 
 ---
 
 ## Decisions Awaiting Approval
 
-| # | Decision | Status |
-|---|----------|--------|
-| 1 | Phase 0: Wedge locked, stack chosen — see CLAUDE.md for full details | **Awaiting owner approval before Phase 1** |
+| #   | Decision                                                             | Status                                     |
+| --- | -------------------------------------------------------------------- | ------------------------------------------ |
+| 1   | Phase 1 complete — schema, RLS, overdue calculator, 32 passing tests | **Awaiting owner approval before Phase 2** |

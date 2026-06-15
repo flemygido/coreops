@@ -16,29 +16,35 @@ CoreOps is an AI operations layer for Indian SMBs. It connects the tools a busin
 ## LOCKED WEDGE (Phase 0 — confirmed 2026-06-15)
 
 ### 1. The One Buyer
+
 Indian wholesaler/distributor (5–50 staff) who runs orders over WhatsApp and books in Zoho Books or Tally.
 
 ### 2. The One Money-Bleed Workflow (v1)
+
 Receivables recovery — detect overdue invoices, match them to the right customer, and prompt the owner with a ready-to-send WhatsApp follow-up.
 The rupee problem: money already earned, stuck in delayed payments.
 
 ### 3. The Single MVP Success Metric
+
 Reduction in **Days Sales Outstanding (DSO)** OR **rupees of overdue receivables recovered** within a 30-day pilot.
 
 **How measured:**
+
 - Baseline DSO captured before go-live (from existing invoice/payment data in Zoho/Tally)
 - DSO = (Accounts Receivable ÷ Total Credit Sales) × Number of Days — recalculated weekly after go-live
 - Rupees recovered = sum of invoices that moved from overdue to paid after a CoreOps follow-up was sent
 - Baseline source: pilot customer's Zoho Books or Tally export
 
 ### 4. Validation Status
+
 > ⚠️ **RISK #1: As of Phase 0 (2026-06-15), there is NO confirmed paying customer.**
 > **Strategy chosen by owner:** Publish the project openly on GitHub to attract early customers, rather than waiting for a named pilot before building.
 > This changes the risk posture: we are building in public, so code quality, documentation, and security hygiene are customer-facing from Phase 0.
 > Phase 7 (pilot deployment) still requires a named customer with DPDP consent before any real data is processed.
-> When a pilot is confirmed, record here: **Pilot customer name:** _________________  **Pain confirmed:** _________________  **Date:** _________________
+> When a pilot is confirmed, record here: **Pilot customer name:** ********\_******** **Pain confirmed:** ********\_******** **Date:** ********\_********
 
 ### 5. Non-Goals for v1 (explicitly NOT building)
+
 - Multi-channel marketing
 - Customer-facing chatbot
 - Inventory optimisation
@@ -51,21 +57,23 @@ Reduction in **Days Sales Outstanding (DSO)** OR **rupees of overdue receivables
 
 ## Confirmed Tech Stack
 
-| Layer | Choice | Version | Rationale |
-|-------|--------|---------|-----------|
-| Runtime | Node.js | 24 LTS (v24.15.0) | Active LTS until April 2028; stable foundation |
-| Language | TypeScript | ^5.x (strict) | Type safety; same language across API and dashboard |
-| API framework | Fastify | ^5.8.5 | Native TS generics; 3× Express throughput; schema-first validation; JSON Schema → OpenAPI |
-| DB / Auth / Storage | Supabase (Postgres + RLS + Auth) | supabase-js ^2.108.1 | RLS enforces the data-isolation trust moat at DB level; auth built in |
-| Dashboard | Next.js + Tailwind | Latest | React Server Components; same TS ecosystem; large Indian hiring pool |
-| Test runner | Vitest | ^3.0.0 | Fast; native ESM/TS; no Babel required |
-| Monorepo | npm workspaces | built-in | Zero extra tooling at v1 scale |
-| LLM | Anthropic Claude (provider-abstracted) | Latest | Cost/quality for structured output; provider interface prevents lock-in |
-| WhatsApp | WhatsApp Business Cloud API (Meta direct) | — | Only path for programmatic WhatsApp in India; no BSP markup |
-| Orchestration | TypeScript cron jobs (v1) | — | Full type safety; no extra runtime; n8n deferred (see ADR-0002) |
+| Layer               | Choice                                    | Version              | Rationale                                                                                 |
+| ------------------- | ----------------------------------------- | -------------------- | ----------------------------------------------------------------------------------------- |
+| Runtime             | Node.js                                   | 24 LTS (v24.15.0)    | Active LTS until April 2028; stable foundation                                            |
+| Language            | TypeScript                                | ^5.x (strict)        | Type safety; same language across API and dashboard                                       |
+| API framework       | Fastify                                   | ^5.8.5               | Native TS generics; 3× Express throughput; schema-first validation; JSON Schema → OpenAPI |
+| DB / Auth / Storage | Supabase (Postgres + RLS + Auth)          | supabase-js ^2.108.1 | RLS enforces the data-isolation trust moat at DB level; auth built in                     |
+| Dashboard           | Next.js + Tailwind                        | Latest               | React Server Components; same TS ecosystem; large Indian hiring pool                      |
+| Test runner         | Vitest                                    | ^3.0.0               | Fast; native ESM/TS; no Babel required                                                    |
+| Monorepo            | npm workspaces                            | built-in             | Zero extra tooling at v1 scale                                                            |
+| LLM                 | Anthropic Claude (provider-abstracted)    | Latest               | Cost/quality for structured output; provider interface prevents lock-in                   |
+| WhatsApp            | WhatsApp Business Cloud API (Meta direct) | —                    | Only path for programmatic WhatsApp in India; no BSP markup                               |
+| Orchestration       | TypeScript cron jobs (v1)                 | —                    | Full type safety; no extra runtime; n8n deferred (see ADR-0002)                           |
 
 ### WhatsApp Pricing Architecture Rule (MANDATORY)
+
 As of **1 July 2025**, billing is **per-message by template category** (not per conversation):
+
 - Marketing templates: ~₹0.82/msg in India (~$0.0094)
 - Utility templates inside Customer Service Window (CSW): **FREE**
 - Service replies inside 24-hour customer service window: **FREE**
@@ -75,44 +83,49 @@ As of **1 July 2025**, billing is **per-message by template category** (not per 
 
 ## Phase Map
 
-| Phase | Status | One-Line Objective |
-|-------|--------|--------------------|
-| 0 | IN PROGRESS | Lock the wedge; stand up CI-green empty repo |
-| 1 | Pending | Model receivables data with RLS + DPDP-aligned audit trail |
-| 2 | Pending | Core backend APIs + auth for the receivables workflow |
-| 3 | Pending | Provider-abstracted integration connectors (mocks first) |
-| 4 | Pending | AI/agent layer with evals, guardrails, cost tracking |
-| 5 | Pending | End-to-end receivables recovery workflow, owner-in-loop |
-| 6 | Pending | Observability, cost controls, security + DPDP hardening |
-| 7 | **BLOCKED** | Pilot deployment — blocked until RISK #1 resolved |
+| Phase | Status      | One-Line Objective                                         |
+| ----- | ----------- | ---------------------------------------------------------- |
+| 0     | COMPLETE    | Lock the wedge; stand up CI-green empty repo               |
+| 1     | COMPLETE    | Model receivables data with RLS + DPDP-aligned audit trail |
+| 2     | Pending     | Core backend APIs + auth for the receivables workflow      |
+| 3     | Pending     | Provider-abstracted integration connectors (mocks first)   |
+| 4     | Pending     | AI/agent layer with evals, guardrails, cost tracking       |
+| 5     | Pending     | End-to-end receivables recovery workflow, owner-in-loop    |
+| 6     | Pending     | Observability, cost controls, security + DPDP hardening    |
+| 7     | **BLOCKED** | Pilot deployment — blocked until RISK #1 resolved          |
 
 ---
 
 ## Conventions
 
 ### Runtime & Language
+
 - Node: `>=24.0.0` (enforced in `engines` field in every `package.json`)
 - TypeScript: `^5.x` strict mode; no implicit `any`; no `eslint-disable` without a comment explaining why
 - ESM throughout: `"type": "module"` in all package.json files
 - Imports use explicit `.js` extensions (required by NodeNext module resolution)
 
 ### Lint & Format
+
 - ESLint 9 (flat config `eslint.config.js`), `typescript-eslint` ^8
 - Prettier 3: `singleQuote: true`, `semi: false`, `tabWidth: 2`, `printWidth: 100`, `trailingComma: "es5"`
 - Pre-commit: husky + lint-staged (lint + format staged files)
 
 ### Commit Style
+
 - Conventional Commits: `feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:`
 - Scope is preferred: `feat(api): add invoice endpoint`
 - No `WIP` commits on `main`
 
 ### Branch Strategy
+
 - `main` — production-ready; CI required; no direct pushes
 - `develop` — integration branch
 - `feat/<name>` — feature branches off `develop`
 - Phase work: `feat/phase-N-<brief-name>` branches
 
 ### Test Commands
+
 ```bash
 npm test                              # all workspaces
 npm test -w apps/api                  # single workspace
@@ -121,6 +134,7 @@ npm run lint                          # eslint .
 ```
 
 ### Run Locally
+
 ```bash
 cp .env.example .env    # fill in secrets
 npm install
@@ -156,11 +170,14 @@ Rules passed November 2025; 12-month implementation phase for Consent Managers.
 ---
 
 ## ADRs
+
 See [/docs/adr/](./docs/adr/) for all architectural decisions.
+
 - [ADR-0001](./docs/adr/ADR-0001-stack.md): Technology stack selection (Phase 0)
 - ADR-0002: Orchestration approach — TypeScript cron vs n8n (pending Phase 3 research)
 
 ---
 
 ## Progress Tracker
+
 See [PROGRESS.md](./PROGRESS.md).
