@@ -8,7 +8,6 @@ interface Env {
   SUPABASE_URL: string
   SUPABASE_ANON_KEY: string
   SUPABASE_SERVICE_ROLE_KEY: string
-  SUPABASE_JWT_SECRET: string
   ENCRYPTION_KEY: string
 }
 
@@ -26,7 +25,6 @@ export function loadEnv(): Env {
     SUPABASE_URL: required('SUPABASE_URL'),
     SUPABASE_ANON_KEY: required('SUPABASE_ANON_KEY'),
     SUPABASE_SERVICE_ROLE_KEY: required('SUPABASE_SERVICE_ROLE_KEY'),
-    SUPABASE_JWT_SECRET: required('SUPABASE_JWT_SECRET'),
     ENCRYPTION_KEY: required('ENCRYPTION_KEY'),
   }
 }

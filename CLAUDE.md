@@ -68,7 +68,7 @@ Reduction in **Days Sales Outstanding (DSO)** OR **rupees of overdue receivables
 | Monorepo            | npm workspaces                            | built-in             | Zero extra tooling at v1 scale                                                            |
 | LLM                 | Anthropic Claude (provider-abstracted)    | Latest               | Cost/quality for structured output; provider interface prevents lock-in                   |
 | WhatsApp            | WhatsApp Business Cloud API (Meta direct) | —                    | Only path for programmatic WhatsApp in India; no BSP markup                               |
-| Orchestration       | TypeScript cron jobs (v1)                 | —                    | Full type safety; no extra runtime; n8n deferred (see ADR-0002)                           |
+| Orchestration       | TypeScript cron jobs (v1)                 | —                    | Full type safety; no extra runtime; n8n deferred (see ADR-0004)                           |
 
 ### WhatsApp Pricing Architecture Rule (MANDATORY)
 
@@ -88,7 +88,7 @@ As of **1 July 2025**, billing is **per-message by template category** (not per 
 | 0     | COMPLETE    | Lock the wedge; stand up CI-green empty repo               |
 | 1     | COMPLETE    | Model receivables data with RLS + DPDP-aligned audit trail |
 | 2     | COMPLETE    | Core backend APIs + auth for the receivables workflow      |
-| 3     | Pending     | Provider-abstracted integration connectors (mocks first)   |
+| 3     | COMPLETE    | Provider-abstracted integration connectors (mocks first)   |
 | 4     | Pending     | AI/agent layer with evals, guardrails, cost tracking       |
 | 5     | Pending     | End-to-end receivables recovery workflow, owner-in-loop    |
 | 6     | Pending     | Observability, cost controls, security + DPDP hardening    |
@@ -174,8 +174,9 @@ Rules passed November 2025; 12-month implementation phase for Consent Managers.
 See [/docs/adr/](./docs/adr/) for all architectural decisions.
 
 - [ADR-0001](./docs/adr/ADR-0001-stack.md): Technology stack selection (Phase 0)
-- [ADR-0003](./docs/adr/ADR-0003-api-auth.md): API auth pattern — @fastify/jwt + per-request Supabase client (Phase 2)
-- ADR-0002: Orchestration approach — TypeScript cron vs n8n (pending Phase 3 research)
+- [ADR-0002](./docs/adr/ADR-0002-data-model.md): Data model & RLS architecture (Phase 1)
+- [ADR-0003](./docs/adr/ADR-0003-api-auth.md): API auth pattern — JWKS-verified Supabase JWT + per-request Supabase client (Phase 2, amended Phase 3)
+- [ADR-0004](./docs/adr/ADR-0004-connectors.md): Provider-abstracted connectors, Tally relay-agent finding, croner orchestration decision (Phase 3)
 
 ---
 
