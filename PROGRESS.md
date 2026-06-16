@@ -8,7 +8,7 @@ Living progress tracker. Updated at the end of every phase. Read this alongside 
 
 **Phase 4 — AI/Agent Layer** | Status: **COMPLETE and MERGED** (`main`, commit `9f768c7`) — see ADR-0005
 
-**Post-Phase-4 enhancement (2026-06-17):** multi-provider, cost-ranked model resolution (Anthropic + OpenAI) — see ADR-0005 Amendment, branch `feat/llm-multi-provider-ranking`.
+**Post-Phase-4 enhancement (2026-06-17):** multi-provider, cost-ranked model resolution (Anthropic + OpenAI) — **COMPLETE and MERGED** (`main`, commit `10c6a02`, PR #3) — see ADR-0005 Amendment.
 
 ---
 
