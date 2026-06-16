@@ -2,23 +2,28 @@ import { Type } from '@sinclair/typebox'
 import type { FastifyPluginAsync } from 'fastify'
 import { NotFoundError } from '../plugins/errors.js'
 
+// Note (Phase 4): this schema previously listed columns (channel, message_text,
+// resolved_at) and status values (pending/responded) that don't exist on the real
+// follow_ups table — see supabase/migrations/20260615000001_schema.sql. Never caught
+// because the only test exercising this route checked the 401-without-auth path,
+// same blind spot as the Phase 2 auth bug (see PROGRESS.md). Fixed to match the DB.
 const FollowUpSchema = Type.Object({
   id: Type.String({ format: 'uuid' }),
   business_id: Type.String({ format: 'uuid' }),
+  briefing_id: Type.Union([Type.String({ format: 'uuid' }), Type.Null()]),
   invoice_id: Type.String({ format: 'uuid' }),
   customer_id: Type.String({ format: 'uuid' }),
-  briefing_id: Type.Union([Type.String({ format: 'uuid' }), Type.Null()]),
-  channel: Type.Union([Type.Literal('whatsapp'), Type.Literal('email'), Type.Literal('manual')]),
+  drafted_text: Type.String(),
   status: Type.Union([
-    Type.Literal('pending'),
+    Type.Literal('draft'),
+    Type.Literal('approved'),
     Type.Literal('sent'),
     Type.Literal('failed'),
-    Type.Literal('responded'),
-    Type.Literal('resolved'),
+    Type.Literal('skipped'),
   ]),
-  message_text: Type.Union([Type.String(), Type.Null()]),
+  approved_at: Type.Union([Type.String(), Type.Null()]),
   sent_at: Type.Union([Type.String(), Type.Null()]),
-  resolved_at: Type.Union([Type.String(), Type.Null()]),
+  whatsapp_message_id: Type.Union([Type.String(), Type.Null()]),
   created_at: Type.String(),
   updated_at: Type.String(),
 })
@@ -26,11 +31,11 @@ const FollowUpSchema = Type.Object({
 const ListQuery = Type.Object({
   status: Type.Optional(
     Type.Union([
-      Type.Literal('pending'),
+      Type.Literal('draft'),
+      Type.Literal('approved'),
       Type.Literal('sent'),
       Type.Literal('failed'),
-      Type.Literal('responded'),
-      Type.Literal('resolved'),
+      Type.Literal('skipped'),
     ])
   ),
   limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 200, default: 50 })),
@@ -41,11 +46,11 @@ const IdParam = Type.Object({ id: Type.String({ format: 'uuid' }) })
 
 const PatchStatusBody = Type.Object({
   status: Type.Union([
-    Type.Literal('pending'),
+    Type.Literal('draft'),
+    Type.Literal('approved'),
     Type.Literal('sent'),
     Type.Literal('failed'),
-    Type.Literal('responded'),
-    Type.Literal('resolved'),
+    Type.Literal('skipped'),
   ]),
 })
 
@@ -101,12 +106,12 @@ export const followUpsRoutes: FastifyPluginAsync = async (app) => {
       const { id } = req.params as { id: string }
       const { status } = req.body as { status: string }
 
-      const resolved_at = status === 'resolved' ? new Date().toISOString() : undefined
+      const approved_at = status === 'approved' ? new Date().toISOString() : undefined
       const sent_at = status === 'sent' ? new Date().toISOString() : undefined
 
       const { data, error } = await req.supabase
         .from('follow_ups')
-        .update({ status, ...(resolved_at && { resolved_at }), ...(sent_at && { sent_at }) })
+        .update({ status, ...(approved_at && { approved_at }), ...(sent_at && { sent_at }) })
         .eq('id', id)
         .eq('business_id', req.businessId)
         .select()
