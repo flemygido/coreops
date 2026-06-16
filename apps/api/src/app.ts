@@ -10,6 +10,7 @@ import { customersRoutes } from './routes/customers.js'
 import { briefingsRoutes } from './routes/briefings.js'
 import { followUpsRoutes } from './routes/follow-ups.js'
 import { receivablesRoutes } from './routes/receivables.js'
+import { connectedAccountsRoutes } from './routes/connected-accounts.js'
 import type { Env } from './env.js'
 
 export async function createApp(env: Env) {
@@ -33,6 +34,7 @@ export async function createApp(env: Env) {
   await app.register(briefingsRoutes, { prefix: '/v1' })
   await app.register(followUpsRoutes, { prefix: '/v1' })
   await app.register(receivablesRoutes, { prefix: '/v1' })
+  await app.register(connectedAccountsRoutes, { prefix: '/v1' })
 
   return app
 }

@@ -17,7 +17,6 @@ const testEnv: Env = {
   SUPABASE_URL: 'http://localhost:54321',
   SUPABASE_ANON_KEY: 'test-anon-key',
   SUPABASE_SERVICE_ROLE_KEY: 'test-service-role-key',
-  SUPABASE_JWT_SECRET: 'super-secret-jwt-token-with-at-least-32-characters-long',
   ENCRYPTION_KEY: 'a'.repeat(64),
 }
 
@@ -39,16 +38,24 @@ describe('API auth enforcement', () => {
   })
 
   const protectedRoutes = [
-    ['GET', '/v1/invoices'],
-    ['GET', '/v1/customers'],
-    ['GET', '/v1/briefings'],
-    ['GET', '/v1/follow-ups'],
-    ['GET', '/v1/receivables/state'],
+    ['GET', '/v1/invoices', undefined],
+    ['GET', '/v1/customers', undefined],
+    ['GET', '/v1/briefings', undefined],
+    ['GET', '/v1/follow-ups', undefined],
+    ['GET', '/v1/receivables/state', undefined],
+    ['GET', '/v1/connected-accounts', undefined],
+    [
+      'POST',
+      '/v1/connected-accounts',
+      { provider: 'zoho_books', credentials: { access_token: 'x' } },
+    ],
+    ['DELETE', '/v1/connected-accounts/00000000-0000-0000-0000-000000000000', undefined],
+    ['POST', '/v1/connected-accounts/00000000-0000-0000-0000-000000000000/test', undefined],
   ] as const
 
-  for (const [method, url] of protectedRoutes) {
+  for (const [method, url, payload] of protectedRoutes) {
     it(`${method} ${url} requires auth (401 without token)`, async () => {
-      const res = await app.inject({ method, url })
+      const res = await app.inject({ method, url, payload })
       expect(res.statusCode).toBe(401)
     })
   }

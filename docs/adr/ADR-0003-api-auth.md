@@ -1,8 +1,27 @@
 # ADR-0003 — API Authentication Pattern
 
 **Date:** 2026-06-16
-**Status:** Accepted
+**Status:** Accepted (amended 2026-06-16 — see Amendment below)
 **Phase:** 2
+
+---
+
+## Amendment (2026-06-16)
+
+The original Decision below assumed Supabase issues HS256 JWTs signed with a static
+`SUPABASE_JWT_SECRET`. Testing against a live local Supabase instance during Phase 3
+showed this is no longer true: Supabase signs access tokens with **project-specific
+asymmetric keys (ES256), identified by a rotating `kid`** in the JWT header. A static
+HS256 secret cannot verify these tokens, so the original implementation silently failed
+on every real token (it was only ever exercised against the _absence_ of a token, never
+a valid one).
+
+**Corrected approach:** verification now uses `supabase-js`'s `auth.getClaims(token)`,
+which fetches and caches the project's JWKS (`{SUPABASE_URL}/auth/v1/.well-known/jwks.json`)
+and verifies the signature locally via WebCrypto. This replaces the `@fastify/jwt` +
+static-secret step in the Decision and Implementation sections below — there is no
+`SUPABASE_JWT_SECRET` anymore. Everything else in this ADR (per-request RLS client,
+business_id resolution, `supabaseAdmin` isolation) is unchanged.
 
 ---
 
@@ -14,7 +33,7 @@ Every protected API route must:
 2. Resolve which business the caller owns
 3. Enforce row-level data isolation with zero extra code per route
 
-We chose Supabase as our auth provider. Supabase issues HS256 JWTs signed with a known secret (`SUPABASE_JWT_SECRET`). We need to decide how the Fastify API verifies these tokens and how RLS is applied per request.
+We chose Supabase as our auth provider. ~~Supabase issues HS256 JWTs signed with a known secret (`SUPABASE_JWT_SECRET`).~~ _(Superseded — see Amendment: Supabase signs with rotating asymmetric ES256 keys, verified via JWKS.)_ We need to decide how the Fastify API verifies these tokens and how RLS is applied per request.
 
 ---
 
@@ -22,7 +41,7 @@ We chose Supabase as our auth provider. Supabase issues HS256 JWTs signed with a
 
 **Two-layer auth pattern:**
 
-1. `@fastify/jwt` at the app level verifies the Supabase JWT using `SUPABASE_JWT_SECRET`. Rejected early — before any business logic runs.
+1. The auth plugin verifies the Supabase JWT via `supabase-js`'s `getClaims()` (local JWKS verification — see Amendment). Rejected early — before any business logic runs.
 
 2. On every authenticated request, a **per-request Supabase client** is created carrying the user's JWT as the `Authorization: Bearer` header. All DB queries on this client automatically obey Supabase RLS policies — no manual `WHERE business_id = ?` required in route handlers.
 
@@ -36,7 +55,7 @@ We chose Supabase as our auth provider. Supabase issues HS256 JWTs signed with a
 
 ```
 plugins/auth.ts
-  └─ registers @fastify/jwt with SUPABASE_JWT_SECRET
+  └─ verifies the bearer token via the per-request client's auth.getClaims() (JWKS, ES256)
   └─ decorates app with `authenticate` preHandler
   └─ decorates request with `businessId` and `supabase` (per-request client)
 
@@ -63,12 +82,13 @@ routes/*.ts
 **Trade-offs:**
 
 - One extra DB query per request (business_id lookup). Acceptable at v1 scale; can be cached (Redis/in-memory) in Phase 6 if it shows in profiling
-- Supabase JWT secret must be rotated carefully — it signs all user tokens
+- `getClaims()` falls back to a network round-trip (`getUser()`-equivalent) if the project ever reverts to symmetric (HS256) signing or the JWKS lookup fails — acceptable as a fallback, not the steady-state path
 
 ---
 
 ## Rejected alternatives
 
 - **Session cookies:** Stateful; complicates horizontal scaling; not suitable for future mobile/WhatsApp webhook receivers
-- **Supabase `getUser()` call per request:** Makes a network round-trip to Supabase Auth service. `@fastify/jwt` local verification is faster and more reliable
+- **Supabase `getUser()` call per request:** Makes a network round-trip to Supabase Auth service on every request. `getClaims()` verifies locally against a cached JWKS and only falls back to a network call when asymmetric verification isn't possible
+- **`fastify-jwt-jwks` (Nearform plugin):** Considered during the JWKS fix, but it only supports RS256/EdDSA verification, not ES256 — incompatible with Supabase's actual signing algorithm
 - **Manual `WHERE business_id = ?` in every query:** Error-prone; RLS is more secure (enforced at DB level even if app code has bugs)
