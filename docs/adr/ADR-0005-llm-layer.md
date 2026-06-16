@@ -6,6 +6,24 @@
 
 ---
 
+## Amendment (2026-06-17): Multi-Provider, Cost-Ranked Model Resolution
+
+The original decision below defaulted to a single hardcoded model (Anthropic Haiku 4.5) via `LLM_MODEL`. The owner's direction, given there are still **zero paying customers** (RISK #1): minimize real spend during testing by routing the bulk of LLM calls through whichever provider is cheapest, and reserve Anthropic for whatever later counts as an "important" use — with the explicit intent to move to higher-tier models once there's revenue to justify the cost.
+
+**What changed:**
+
+- Added `apps/api/src/llm/openai-client.ts` (`OpenAIClient implements LlmClient`), using `openai` SDK 6.42.0's `chat.completions.parse()` + `zodResponseFormat()` for the same schema-constrained-output guarantee `AnthropicClient` already had. Both clients now share one system prompt/schema (`prompts.ts`) so they can never drift into drafting under different rules depending on which model answered.
+- Added `apps/api/src/llm/model-ranking.ts`: each AI "use" (currently only `follow_up_draft`) gets an env var listing ranked `provider:model` candidates, most-affordable-first. `resolveModelCandidate()` walks the list and returns the **first candidate whose provider's API key is actually present** — `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` are the only switch that matters at runtime. Leaving a key blank guarantees zero spend on that provider regardless of where it sits in the ranking.
+- Default ranking (`LLM_RANKING_FOLLOW_UP_DRAFT`): `openai:gpt-5-nano,openai:gpt-5-mini,anthropic:claude-haiku-4-5-20251001,anthropic:claude-sonnet-4-6` — OpenAI's cheapest tier first, since drafting a follow-up isn't (yet) an "important" use in the owner's framing.
+- `cost-tracker.ts`'s pricing table now also covers `gpt-5-nano` ($0.05/$0.40 per M tokens), `gpt-5-mini` ($0.25/$2.00), and `gpt-5.5` ($5/$30, listed for whenever an "important" use justifies it) — OpenAI pricing, June 2026.
+- `registry.ts` gained `getLlmClientForRanking(ranking, keys)`, the entry point Phase 5's workflow code should call instead of constructing a client directly.
+
+**Why a ranking instead of just "provider X for use Y":** the owner explicitly wants control via _which keys are filled in_, not via a code change — "I'll update API key whichever I'm affordable then the code should use whichever api that has key filled in." A ranked list expressed as plain env-var text achieves that: changing cost tier later is an env edit, not a deploy.
+
+**Open verification gap:** structured output (`zodResponseFormat`) is documented against `gpt-4o`-era models; this assumes it also works against `gpt-5-nano`/`gpt-5-mini` without having run it for real yet (no API key was available at the time this was written — see the eval-suite caveat below, now updated to resolve against whichever provider the configured keys point to, not hardcoded to Anthropic).
+
+---
+
 ## Context
 
 Phase 4 builds the AI layer the wedge workflow depends on: turning a deterministically-computed overdue invoice (Phase 1's `summariseOverdue`, assembled per-business by `receivables-state.ts`) into a draft WhatsApp follow-up message the owner can review and send. Per Hard Rule #6, the LLM only ever generates _language_ — every amount, date, and overdue calculation it's given was already computed deterministically before the model ever sees it, and nothing the model returns is treated as authoritative for those numbers.
@@ -16,9 +34,11 @@ This phase also surfaced a real bug while building it: `apps/api/src/routes/foll
 
 ## Decision
 
-### Model: Claude Haiku 4.5, not Sonnet or Opus
+### Model: cheapest available tier, not Sonnet or Opus
 
-A follow-up draft is a short, structurally simple piece of text (customer name, invoice number, amount, days overdue, polite tone) — not a task that benefits from a larger model's reasoning depth. Haiku 4.5 is $1/$5 per million input/output tokens vs. Sonnet 4.6's $3/$15 — roughly a 3x cost difference for a high-volume, low-complexity call that runs once per overdue invoice per business per day. `LLM_MODEL` is an env var (default `claude-haiku-4-5-20251001`), so upgrading to Sonnet for quality reasons later is a config change, not a code change.
+> **Superseded by the 2026-06-17 Amendment above** — originally this defaulted to a single hardcoded `LLM_MODEL=claude-haiku-4-5-20251001`. The reasoning below (a follow-up draft doesn't need a large model's reasoning depth) still holds; what changed is _which_ cheap model and _how_ it's selected — now a ranked, multi-provider list resolved by which API key is present, not a single fixed env var.
+
+A follow-up draft is a short, structurally simple piece of text (customer name, invoice number, amount, days overdue, polite tone) — not a task that benefits from a larger model's reasoning depth. This is true whether the cheapest available model is Anthropic's or OpenAI's; the point is using the cheapest _capable_ tier for a high-volume, low-complexity call that runs once per overdue invoice per business per day, and treating an upgrade as a config change, not a code change.
 
 ### Provider abstraction mirrors the connectors pattern
 
@@ -46,7 +66,7 @@ This was chosen over regex/entity-detection PII scrubbing (e.g. Microsoft Presid
 
 `apps/api/src/llm/__tests__/follow-up-draft.eval.test.ts` runs a small fixed set of invoice scenarios through the _real_ Anthropic API (gated on `ANTHROPIC_API_KEY`, `describe.skipIf` — same pattern as the Supabase-gated integration tests) and asserts each draft passes guardrails. Promptfoo is the closer-to-standard 2026 tool for this, but it's a new framework/dependency for one workflow at v1 scale — a Vitest-based eval suite fits the existing test infrastructure and CLAUDE.md's own "no extra tooling at v1 scale" bias (the same reasoning behind npm workspaces over a heavier monorepo tool).
 
-**Caveat:** this eval suite has not been run against the live Anthropic API in this session — no `ANTHROPIC_API_KEY` is configured in this environment, so it skipped (verified: the "skipped notice" test confirms it skipped because the key was absent, not silently). It needs a real run with a real key before Phase 4 can be considered fully verified end-to-end, the same standard applied to the Phase 2 auth bug.
+**Caveat:** this eval suite has not been run against any live LLM API as of this writing — no `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` was configured in this environment, so it skipped (verified: the "skipped notice" test confirms it skipped because no key was present, not silently). As of the 2026-06-17 Amendment, the suite resolves its client the same way production code will — via `LLM_RANKING_FOLLOW_UP_DRAFT` and whichever key is actually filled in — so the first real run will also be the first real verification that `zodResponseFormat` structured output actually works against `gpt-5-nano`/`gpt-5-mini`, not just Anthropic's `zodOutputFormat`. Needed before Phase 5 depends on this layer, same standard applied to the Phase 2 auth bug.
 
 ---
 
@@ -69,7 +89,8 @@ This was chosen over regex/entity-detection PII scrubbing (e.g. Microsoft Presid
 
 ## Rejected alternatives
 
-- **Sonnet 4.6 as the default model:** 3x the cost for a task that doesn't need the extra reasoning depth; kept as the documented upgrade path via `LLM_MODEL`, not the default
+- **Sonnet 4.6 (or any single fixed model) as the default:** superseded by the 2026-06-17 Amendment — a single hardcoded model can't express "use whichever is cheapest right now," which is the owner's explicit pre-revenue priority
+- **A single LLM provider:** rejected once the owner provided both an Anthropic and an OpenAI key with the explicit intent to route by cost — the existing provider-abstracted `LlmClient` interface (ADR-0004's pattern) made adding a second provider a small, contained change rather than a rewrite
 - **Regex/entity-detection PII redaction (Presidio-style):** unnecessary complexity for structured DB-row input we already control the shape of; allowlisting is simpler and safer for this specific data path
 - **Promptfoo for evals:** a real, standard tool, but a new framework/dependency for a single workflow at v1 scale; revisit if Phase 5/6 needs red-teaming or multi-prompt comparison Promptfoo specializes in
 - **Free-text generation + regex extraction of the message:** rejected in favor of `zodOutputFormat` — schema-enforced output fails fast inside the SDK instead of producing a malformed message three layers downstream

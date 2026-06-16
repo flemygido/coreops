@@ -1,16 +1,22 @@
 // Deterministic cost calculation + logging for every LLM call (CLAUDE.md Hard
 // Rule #6: this is arithmetic, not LLM-generated, even though it's about LLM
-// usage). Token counts come straight off the Anthropic Messages API response.
+// usage). Token counts come straight off each provider's API response.
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-// USD per million tokens. Source: Anthropic pricing, June 2026 — update when
-// models change. Deliberately explicit per-model rather than a formula, so a
-// stale price is a visible one-line diff, not a silent miscalculation.
+// USD per million tokens. Source: Anthropic/OpenAI pricing, June 2026 — update
+// when models change. Deliberately explicit per-model rather than a formula,
+// so a stale price is a visible one-line diff, not a silent miscalculation.
 const PRICING_PER_MILLION_TOKENS_USD: Record<string, { input: number; output: number }> = {
+  // Anthropic
   'claude-haiku-4-5-20251001': { input: 1.0, output: 5.0 },
   'claude-sonnet-4-6': { input: 3.0, output: 15.0 },
   'claude-opus-4-8': { input: 5.0, output: 25.0 },
+  // OpenAI — cheapest tier used for cost-sensitive, pre-revenue testing (see
+  // ADR-0005 Amendment); gpt-5.5 listed for when an "important" use justifies it
+  'gpt-5-nano': { input: 0.05, output: 0.4 },
+  'gpt-5-mini': { input: 0.25, output: 2.0 },
+  'gpt-5.5': { input: 5.0, output: 30.0 },
 }
 
 export function calculateCostUsd(model: string, inputTokens: number, outputTokens: number): number {

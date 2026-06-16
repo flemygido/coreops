@@ -5,21 +5,8 @@
 
 import Anthropic from '@anthropic-ai/sdk'
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
-import { z } from 'zod'
 import type { FollowUpDraftInput, FollowUpDraftResult, LlmClient } from './types.js'
-
-const FollowUpDraftSchema = z.object({
-  message_text: z.string(),
-})
-
-const SYSTEM_PROMPT = `You draft short WhatsApp payment-reminder messages on behalf of a small business owner, sent to their own customer about their own overdue invoice.
-
-Rules:
-- Polite, brief, professional — never threatening or apologetic.
-- Always mention the customer's name, the invoice number, and the amount outstanding.
-- Never include a URL, link, or payment instructions — those are added separately.
-- One short message, no greeting/signature boilerplate beyond what fits naturally.
-- Output language: English.`
+import { FollowUpDraftSchema, FOLLOW_UP_DRAFT_SYSTEM_PROMPT } from './prompts.js'
 
 export class AnthropicClient implements LlmClient {
   readonly provider = 'anthropic'
@@ -36,7 +23,7 @@ export class AnthropicClient implements LlmClient {
     const message = await this.client.messages.parse({
       model: this.model,
       max_tokens: 256,
-      system: SYSTEM_PROMPT,
+      system: FOLLOW_UP_DRAFT_SYSTEM_PROMPT,
       messages: [
         {
           role: 'user',

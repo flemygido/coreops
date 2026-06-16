@@ -19,7 +19,8 @@ const testEnv: Env = {
   SUPABASE_SERVICE_ROLE_KEY: 'test-service-role-key',
   ENCRYPTION_KEY: 'a'.repeat(64),
   ANTHROPIC_API_KEY: undefined,
-  LLM_MODEL: 'claude-haiku-4-5-20251001',
+  OPENAI_API_KEY: undefined,
+  LLM_RANKING_FOLLOW_UP_DRAFT: 'openai:gpt-5-nano,anthropic:claude-haiku-4-5-20251001',
 }
 
 describe('API auth enforcement', () => {

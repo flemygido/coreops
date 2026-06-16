@@ -57,18 +57,18 @@ Reduction in **Days Sales Outstanding (DSO)** OR **rupees of overdue receivables
 
 ## Confirmed Tech Stack
 
-| Layer               | Choice                                    | Version              | Rationale                                                                                 |
-| ------------------- | ----------------------------------------- | -------------------- | ----------------------------------------------------------------------------------------- |
-| Runtime             | Node.js                                   | 24 LTS (v24.15.0)    | Active LTS until April 2028; stable foundation                                            |
-| Language            | TypeScript                                | ^5.x (strict)        | Type safety; same language across API and dashboard                                       |
-| API framework       | Fastify                                   | ^5.8.5               | Native TS generics; 3× Express throughput; schema-first validation; JSON Schema → OpenAPI |
-| DB / Auth / Storage | Supabase (Postgres + RLS + Auth)          | supabase-js ^2.108.1 | RLS enforces the data-isolation trust moat at DB level; auth built in                     |
-| Dashboard           | Next.js + Tailwind                        | Latest               | React Server Components; same TS ecosystem; large Indian hiring pool                      |
-| Test runner         | Vitest                                    | ^3.0.0               | Fast; native ESM/TS; no Babel required                                                    |
-| Monorepo            | npm workspaces                            | built-in             | Zero extra tooling at v1 scale                                                            |
-| LLM                 | Anthropic Claude (provider-abstracted)    | Latest               | Cost/quality for structured output; provider interface prevents lock-in                   |
-| WhatsApp            | WhatsApp Business Cloud API (Meta direct) | —                    | Only path for programmatic WhatsApp in India; no BSP markup                               |
-| Orchestration       | TypeScript cron jobs (v1)                 | —                    | Full type safety; no extra runtime; n8n deferred (see ADR-0004)                           |
+| Layer               | Choice                                    | Version              | Rationale                                                                                                                                                                               |
+| ------------------- | ----------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Runtime             | Node.js                                   | 24 LTS (v24.15.0)    | Active LTS until April 2028; stable foundation                                                                                                                                          |
+| Language            | TypeScript                                | ^5.x (strict)        | Type safety; same language across API and dashboard                                                                                                                                     |
+| API framework       | Fastify                                   | ^5.8.5               | Native TS generics; 3× Express throughput; schema-first validation; JSON Schema → OpenAPI                                                                                               |
+| DB / Auth / Storage | Supabase (Postgres + RLS + Auth)          | supabase-js ^2.108.1 | RLS enforces the data-isolation trust moat at DB level; auth built in                                                                                                                   |
+| Dashboard           | Next.js + Tailwind                        | Latest               | React Server Components; same TS ecosystem; large Indian hiring pool                                                                                                                    |
+| Test runner         | Vitest                                    | ^3.0.0               | Fast; native ESM/TS; no Babel required                                                                                                                                                  |
+| Monorepo            | npm workspaces                            | built-in             | Zero extra tooling at v1 scale                                                                                                                                                          |
+| LLM                 | Anthropic + OpenAI (provider-abstracted)  | Latest               | Provider interface prevents lock-in; pre-revenue, cost-ranked model resolution picks the cheapest configured provider per AI use, OpenAI cheap tier by default — see ADR-0005 Amendment |
+| WhatsApp            | WhatsApp Business Cloud API (Meta direct) | —                    | Only path for programmatic WhatsApp in India; no BSP markup                                                                                                                             |
+| Orchestration       | TypeScript cron jobs (v1)                 | —                    | Full type safety; no extra runtime; n8n deferred (see ADR-0004)                                                                                                                         |
 
 ### WhatsApp Pricing Architecture Rule (MANDATORY)
 
