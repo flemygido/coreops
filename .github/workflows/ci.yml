@@ -21,6 +21,9 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Build shared package
+        run: npm run build --workspace=packages/shared
+
       - name: Lint
         run: npm run lint
 
@@ -43,6 +46,9 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+
+      - name: Build shared package
+        run: npm run build --workspace=packages/shared
 
       - uses: supabase/setup-cli@v1
         with:
