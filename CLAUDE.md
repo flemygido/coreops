@@ -149,7 +149,7 @@ npm run dev -w apps/api
 2. **Research before building.** Verify current docs/library versions before each phase. Do not rely on memory.
 3. **Secrets in env only.** Never hardcode credentials. Always ship `.env.example`.
 4. **No large data in context.** Sample schemas/headers only. Never load full datasets, binaries, or dumps.
-5. **Blocker = STOP.** If validation fails, a prerequisite contradicts the plan, or a blocker appears — surface it to the owner; do not silently work around it.
+5. **Blocker = STOP — relaxed pre-prod (owner decision, 2026-06-16).** Original rule: if validation fails, a prerequisite contradicts the plan, or a blocker appears, surface it to the owner before acting. **Pre-prod carve-out:** until Phase 7 (pilot deployment) brings in real customer data, the owner has delegated full dev/architect/lead authority — diagnose, fix, and merge blockers autonomously, then report what was done and why. Existing QA reviews every build and catches issues downstream, acting as the safety net. Revert to strict stop-before-acting once code reviewers/QA/outsourced agents are formally in the loop or Phase 7 begins.
 6. **Deterministic logic stays deterministic.** Date math, overdue calculations, thresholds — NO LLM. LLM only for language generation.
 7. **Privacy by default.** PII redacted before leaving the private boundary. RLS on every table. Minimal scopes on every token.
 8. **DPDP compliance is not a later concern.** Build consent records, audit trail, and data-rights endpoints from Phase 1 onward.
