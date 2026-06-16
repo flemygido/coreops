@@ -6,7 +6,7 @@ Living progress tracker. Updated at the end of every phase. Read this alongside 
 
 ## Current Phase
 
-**Phase 3 — Integration Connectors** | Status: **COMPLETE and MERGED** (`main`, commit `851bf89`)
+**Phase 4 — AI/Agent Layer** | Status: **COMPLETE** (pending PR merge — see ADR-0005)
 
 ---
 
@@ -40,14 +40,69 @@ Living progress tracker. Updated at the end of every phase. Read this alongside 
 
 ---
 
+## Process Note: Another Phase 2 Schema Bug Found (Phase 4)
+
+> ⚠️ `apps/api/src/routes/follow-ups.ts` (Phase 2) had a schema that didn't match the real `follow_ups` table — it referenced `channel`, `message_text`, `resolved_at`, and status values `pending`/`responded`, none of which exist in `supabase/migrations/20260615000001_schema.sql` (the real columns are `drafted_text`, `approved_at`, `whatsapp_message_id`, statuses `draft`/`approved`/`sent`/`failed`/`skipped`). Same blind spot as the JWKS auth bug: the only test touching this route checked the 401-without-auth path, never a real read/write against the table.
+>
+> **Found and fixed in Phase 4** because Phase 4's `drafted_text` output has to land in this exact table. Fixed the schema and the PATCH handler's column names; added `apps/api/src/__tests__/follow-ups.integration.test.ts` (list, filter by status, approve → `approved_at` set, mark sent → `sent_at` set, 404 on missing id) and ran it against live local Supabase — all pass.
+>
+> **Lesson reinforced:** a route that only has an auth-rejection test is unverified, full stop — this is the second time this exact blind spot produced a real bug (see Phase 2 auth note above). Any route touching a DB table needs at least one live-Supabase test exercising its actual read/write path before being called done.
+
+---
+
 ## Phase History
 
-| Phase | Status   | Date       | Commit                        |
-| ----- | -------- | ---------- | ----------------------------- |
-| 0     | COMPLETE | 2026-06-15 | f1e446d                       |
-| 1     | COMPLETE | 2026-06-15 | 9e9ab41                       |
-| 2     | COMPLETE | 2026-06-16 | 558c690                       |
-| 3     | COMPLETE | 2026-06-16 | 851bf89 (squash-merged PR #1) |
+| Phase | Status   | Date       | Commit                                     |
+| ----- | -------- | ---------- | ------------------------------------------ |
+| 0     | COMPLETE | 2026-06-15 | f1e446d                                    |
+| 1     | COMPLETE | 2026-06-15 | 9e9ab41                                    |
+| 2     | COMPLETE | 2026-06-16 | 558c690                                    |
+| 3     | COMPLETE | 2026-06-16 | 851bf89 (squash-merged PR #1)              |
+| 4     | COMPLETE | 2026-06-16 | pending PR merge (`feat/phase-4-ai-layer`) |
+
+---
+
+## Phase 4 Checklist ✅
+
+### Prerequisite Research
+
+- [x] `@anthropic-ai/sdk` current version (0.104.2), `zodOutputFormat`/`client.messages.parse()` for structured output (confirmed by reading the installed SDK's source, not just docs)
+- [x] Anthropic pricing, June 2026 — Haiku 4.5 $1/$5, Sonnet 4.6 $3/$15, Opus 4.8 $5/$25 per million tokens; `usage.input_tokens`/`output_tokens` on every Messages API response
+- [x] Eval framework landscape — Promptfoo is the 2026 standard but a new dependency for one workflow; chose Vitest golden-set instead (see ADR-0005)
+- [x] PII redaction practice — chose allowlist (data minimization) over denylist/entity-detection since the input is structured DB rows we control, not freeform text
+
+### LLM Layer (`apps/api/src/llm/`)
+
+- [x] `types.ts` — `LlmClient` interface, provider-abstracted like `../connectors`
+- [x] `anthropic-client.ts` — real Anthropic implementation, structured output via `zodOutputFormat`
+- [x] `registry.ts` — `getLlmClient(provider, ...)` factory
+- [x] `redact.ts` — allowlists only `{customer_name, invoice_number, amount_outstanding, currency, days_overdue}` into the prompt; phone/email/internal IDs never reach it
+- [x] `guardrails.ts` — rejects empty/oversized/URL-containing drafts or ones that don't mention the customer name or invoice number
+- [x] `cost-tracker.ts` — deterministic USD cost calc from token counts; logs to `llm_usage_log`
+- [x] `follow-up-draft.ts` — orchestrates redact → generate → guardrail-check → cost-log
+
+### Found and Fixed (Phase 2 bug, see Process Note above)
+
+- [x] `apps/api/src/routes/follow-ups.ts` — schema didn't match the real `follow_ups` table; fixed column names and status enum
+- [x] `apps/api/src/__tests__/follow-ups.integration.test.ts` — new live-Supabase test proving the fix (list, filter, approve, send, 404)
+
+### Database
+
+- [x] `supabase/migrations/20260616000001_llm_usage_log.sql` — new table, RLS (tenant read-only), applied cleanly via `supabase start`
+
+### Tests
+
+- [x] `apps/api/src/llm/__tests__/redact.test.ts` — allowlist correctness, confirms phone/IDs never appear in the prompt input
+- [x] `apps/api/src/llm/__tests__/guardrails.test.ts` — 6 cases (valid, empty, oversized, URL, missing name, missing invoice number)
+- [x] `apps/api/src/llm/__tests__/cost-tracker.test.ts` — pricing math, unknown-model throw, usage logging (mocked Supabase)
+- [x] `apps/api/src/llm/__tests__/follow-up-draft.eval.test.ts` — golden-set eval against the **real** Anthropic API, gated on `ANTHROPIC_API_KEY` (`describe.skipIf`)
+
+### All Checks
+
+- [x] `npm run lint` — zero errors
+- [x] `npm run type-check` — zero errors (both workspaces)
+- [x] `npm test` — 71 passed, 4 skipped, against live local Supabase (the 4 skips are the eval suite — **no `ANTHROPIC_API_KEY` was available in this environment, so the eval suite has never actually run against the real model**; this must happen before Phase 5 depends on the LLM layer's real-world output quality)
+- [x] `docs/adr/ADR-0005-llm-layer.md` — written: model choice, privacy/redaction design, guardrails, cost tracking, eval approach, and the unverified-eval caveat
 
 ---
 
@@ -176,11 +231,12 @@ Living progress tracker. Updated at the end of every phase. Read this alongside 
 
 ## Open Questions / Blockers
 
-| #   | Question / Blocker                                                           | Priority | Status                                                                                                                                              |
-| --- | ---------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | **RISK #1:** No confirmed paying customer — strategy is "publish to attract" | High     | Open — blocks Phase 7 only                                                                                                                          |
-| 2   | Does the pilot use Zoho Books or Tally?                                      | High     | **Resolved 2026-06-16 — Zoho Books.** Tally relay-agent work (ADR-0004) is deprioritized; only build it if a Tally-only customer later requires it. |
-| 3   | RLS integration test needs SUPABASE_URL in CI secrets (Phase 7 work)         | Medium   | Noted — CI job will skip until secrets added                                                                                                        |
+| #   | Question / Blocker                                                                                                                                   | Priority | Status                                                                                                                                              |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **RISK #1:** No confirmed paying customer — strategy is "publish to attract"                                                                         | High     | Open — blocks Phase 7 only                                                                                                                          |
+| 2   | Does the pilot use Zoho Books or Tally?                                                                                                              | High     | **Resolved 2026-06-16 — Zoho Books.** Tally relay-agent work (ADR-0004) is deprioritized; only build it if a Tally-only customer later requires it. |
+| 3   | RLS integration test needs SUPABASE_URL in CI secrets (Phase 7 work)                                                                                 | Medium   | Noted — CI job will skip until secrets added                                                                                                        |
+| 4   | LLM eval suite (`follow-up-draft.eval.test.ts`) has never run against the real Anthropic API — no `ANTHROPIC_API_KEY` configured in this environment | High     | Open — must run with a real key before Phase 5 wires the LLM layer into the live workflow                                                           |
 
 ---
 

@@ -89,7 +89,7 @@ As of **1 July 2025**, billing is **per-message by template category** (not per 
 | 1     | COMPLETE    | Model receivables data with RLS + DPDP-aligned audit trail |
 | 2     | COMPLETE    | Core backend APIs + auth for the receivables workflow      |
 | 3     | COMPLETE    | Provider-abstracted integration connectors (mocks first)   |
-| 4     | Pending     | AI/agent layer with evals, guardrails, cost tracking       |
+| 4     | COMPLETE    | AI/agent layer with evals, guardrails, cost tracking       |
 | 5     | Pending     | End-to-end receivables recovery workflow, owner-in-loop    |
 | 6     | Pending     | Observability, cost controls, security + DPDP hardening    |
 | 7     | **BLOCKED** | Pilot deployment — blocked until RISK #1 resolved          |
@@ -177,6 +177,7 @@ See [/docs/adr/](./docs/adr/) for all architectural decisions.
 - [ADR-0002](./docs/adr/ADR-0002-data-model.md): Data model & RLS architecture (Phase 1)
 - [ADR-0003](./docs/adr/ADR-0003-api-auth.md): API auth pattern — JWKS-verified Supabase JWT + per-request Supabase client (Phase 2, amended Phase 3)
 - [ADR-0004](./docs/adr/ADR-0004-connectors.md): Provider-abstracted connectors, Tally relay-agent finding, croner orchestration decision (Phase 3)
+- [ADR-0005](./docs/adr/ADR-0005-llm-layer.md): AI/agent layer — model choice, redact-before-call privacy boundary, guardrails, cost tracking (Phase 4)
 
 ---
 
