@@ -6,7 +6,7 @@ Living progress tracker. Updated at the end of every phase. Read this alongside 
 
 ## Current Phase
 
-**Phase 2 — Core Backend & APIs** | Status: **AWAITING OWNER APPROVAL TO START**
+**Phase 3 — Integration Connectors** | Status: **AWAITING OWNER APPROVAL TO START**
 
 ---
 
@@ -15,7 +15,46 @@ Living progress tracker. Updated at the end of every phase. Read this alongside 
 | Phase | Status   | Date       | Commit         |
 | ----- | -------- | ---------- | -------------- |
 | 0     | COMPLETE | 2026-06-15 | f1e446d        |
-| 1     | COMPLETE | 2026-06-15 | (pending push) |
+| 1     | COMPLETE | 2026-06-15 | 9e9ab41        |
+| 2     | COMPLETE | 2026-06-16 | (pending push) |
+
+---
+
+## Phase 2 Checklist ✅
+
+### Core Infrastructure
+
+- [x] `apps/api/src/env.ts` — strict env validation; fail-fast on missing vars
+- [x] `apps/api/src/types/fastify.d.ts` — TypeScript module augmentation (env, supabaseAdmin, businessId, supabase on request)
+- [x] `apps/api/src/plugins/errors.ts` — centralised error handler; AppError hierarchy (404/401/400/409)
+- [x] `apps/api/src/plugins/supabase-admin.ts` — service-role client (never exposed to user routes)
+- [x] `apps/api/src/plugins/auth.ts` — @fastify/jwt verifies Supabase JWT; per-request RLS client; businessId decorated
+- [x] `apps/api/src/app.ts` — Fastify app factory (plugins + routes registered in correct order)
+- [x] `apps/api/src/server.ts` — entry point: loadEnv + createApp + listen
+
+### Route Handlers (all authenticated, schema-validated with TypeBox)
+
+- [x] `apps/api/src/routes/health.ts` — `GET /health` (open, no auth)
+- [x] `apps/api/src/routes/invoices.ts` — `GET /v1/invoices`, `GET /v1/invoices/:id`
+- [x] `apps/api/src/routes/customers.ts` — `GET /v1/customers`, `GET /v1/customers/:id`
+- [x] `apps/api/src/routes/briefings.ts` — `GET /v1/briefings`, `GET /v1/briefings/:id`, `POST /v1/briefings` (day-idempotent)
+- [x] `apps/api/src/routes/follow-ups.ts` — `GET /v1/follow-ups`, `PATCH /v1/follow-ups/:id/status`
+- [x] `apps/api/src/routes/receivables.ts` — `GET /v1/receivables/state`
+
+### Services
+
+- [x] `apps/api/src/services/receivables-state.ts` — assembles overdue snapshot from DB; runs deterministic calculator; returns typed state object for Phase 4 LLM use
+
+### Tests
+
+- [x] `apps/api/src/__tests__/health.test.ts` — 2 contract tests (200 shape, no auth required)
+- [x] `apps/api/src/__tests__/receivables-state.test.ts` — 6 unit tests (mocked Supabase): zero invoices, overdue classification, paid exclusion, sort order, missing customer fallback, metadata
+- [x] `apps/api/src/__tests__/api.integration.test.ts` — 8 tests proving every protected route returns 401 without token; malformed JWT rejected
+
+### Build & Types
+
+- [x] `packages/shared/tsconfig.build.json` — emit-enabled build config for shared package (dist/)
+- [x] All checks green: lint (0 errors), type-check (0 errors, both workspaces), tests (42 passed, 5 skipped = RLS needs live Supabase)
 
 ---
 
@@ -77,6 +116,6 @@ Living progress tracker. Updated at the end of every phase. Read this alongside 
 
 ## Decisions Awaiting Approval
 
-| #   | Decision                                                             | Status                                     |
-| --- | -------------------------------------------------------------------- | ------------------------------------------ |
-| 1   | Phase 1 complete — schema, RLS, overdue calculator, 32 passing tests | **Awaiting owner approval before Phase 2** |
+| #   | Decision                                                                            | Status                                     |
+| --- | ----------------------------------------------------------------------------------- | ------------------------------------------ |
+| 1   | Phase 2 complete — auth, 6 route files, receivables state service, 42 tests passing | **Awaiting owner approval before Phase 3** |

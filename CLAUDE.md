@@ -41,7 +41,7 @@ Reduction in **Days Sales Outstanding (DSO)** OR **rupees of overdue receivables
 > **Strategy chosen by owner:** Publish the project openly on GitHub to attract early customers, rather than waiting for a named pilot before building.
 > This changes the risk posture: we are building in public, so code quality, documentation, and security hygiene are customer-facing from Phase 0.
 > Phase 7 (pilot deployment) still requires a named customer with DPDP consent before any real data is processed.
-> When a pilot is confirmed, record here: **Pilot customer name:** ********\_******** **Pain confirmed:** ********\_******** **Date:** ********\_********
+> When a pilot is confirmed, record here: **Pilot customer name:** **\*\*\*\***\_**\*\*\*\*** **Pain confirmed:** **\*\*\*\***\_**\*\*\*\*** **Date:** **\*\*\*\***\_**\*\*\*\***
 
 ### 5. Non-Goals for v1 (explicitly NOT building)
 
@@ -87,7 +87,7 @@ As of **1 July 2025**, billing is **per-message by template category** (not per 
 | ----- | ----------- | ---------------------------------------------------------- |
 | 0     | COMPLETE    | Lock the wedge; stand up CI-green empty repo               |
 | 1     | COMPLETE    | Model receivables data with RLS + DPDP-aligned audit trail |
-| 2     | Pending     | Core backend APIs + auth for the receivables workflow      |
+| 2     | COMPLETE    | Core backend APIs + auth for the receivables workflow      |
 | 3     | Pending     | Provider-abstracted integration connectors (mocks first)   |
 | 4     | Pending     | AI/agent layer with evals, guardrails, cost tracking       |
 | 5     | Pending     | End-to-end receivables recovery workflow, owner-in-loop    |
@@ -174,6 +174,7 @@ Rules passed November 2025; 12-month implementation phase for Consent Managers.
 See [/docs/adr/](./docs/adr/) for all architectural decisions.
 
 - [ADR-0001](./docs/adr/ADR-0001-stack.md): Technology stack selection (Phase 0)
+- [ADR-0003](./docs/adr/ADR-0003-api-auth.md): API auth pattern — @fastify/jwt + per-request Supabase client (Phase 2)
 - ADR-0002: Orchestration approach — TypeScript cron vs n8n (pending Phase 3 research)
 
 ---
