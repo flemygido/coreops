@@ -6,7 +6,7 @@ Living progress tracker. Updated at the end of every phase. Read this alongside 
 
 ## Current Phase
 
-**Phase 4 — AI/Agent Layer** | Status: **COMPLETE** (pending PR merge — see ADR-0005)
+**Phase 4 — AI/Agent Layer** | Status: **COMPLETE and MERGED** (`main`, commit `9f768c7`) — see ADR-0005
 
 ---
 
@@ -52,13 +52,13 @@ Living progress tracker. Updated at the end of every phase. Read this alongside 
 
 ## Phase History
 
-| Phase | Status   | Date       | Commit                                     |
-| ----- | -------- | ---------- | ------------------------------------------ |
-| 0     | COMPLETE | 2026-06-15 | f1e446d                                    |
-| 1     | COMPLETE | 2026-06-15 | 9e9ab41                                    |
-| 2     | COMPLETE | 2026-06-16 | 558c690                                    |
-| 3     | COMPLETE | 2026-06-16 | 851bf89 (squash-merged PR #1)              |
-| 4     | COMPLETE | 2026-06-16 | pending PR merge (`feat/phase-4-ai-layer`) |
+| Phase | Status   | Date       | Commit                        |
+| ----- | -------- | ---------- | ----------------------------- |
+| 0     | COMPLETE | 2026-06-15 | f1e446d                       |
+| 1     | COMPLETE | 2026-06-15 | 9e9ab41                       |
+| 2     | COMPLETE | 2026-06-16 | 558c690                       |
+| 3     | COMPLETE | 2026-06-16 | 851bf89 (squash-merged PR #1) |
+| 4     | COMPLETE | 2026-06-16 | 9f768c7 (squash-merged PR #2) |
 
 ---
 
