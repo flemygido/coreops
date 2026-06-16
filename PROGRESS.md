@@ -166,11 +166,11 @@ Living progress tracker. Updated at the end of every phase. Read this alongside 
 
 ## Open Questions / Blockers
 
-| #   | Question / Blocker                                                                                                                                       | Priority | Status                                                             |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------ |
-| 1   | **RISK #1:** No confirmed paying customer — strategy is "publish to attract"                                                                             | High     | Open — blocks Phase 7 only                                         |
-| 2   | Does the pilot use Zoho Books or Tally? (Tally has no cloud API — requires building an on-premise relay agent before Phase 5 can sync it; Zoho does not) | High     | Awaiting owner input — now higher-stakes than before, see ADR-0004 |
-| 3   | RLS integration test needs SUPABASE_URL in CI secrets (Phase 7 work)                                                                                     | Medium   | Noted — CI job will skip until secrets added                       |
+| #   | Question / Blocker                                                           | Priority | Status                                                                                                                                              |
+| --- | ---------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **RISK #1:** No confirmed paying customer — strategy is "publish to attract" | High     | Open — blocks Phase 7 only                                                                                                                          |
+| 2   | Does the pilot use Zoho Books or Tally?                                      | High     | **Resolved 2026-06-16 — Zoho Books.** Tally relay-agent work (ADR-0004) is deprioritized; only build it if a Tally-only customer later requires it. |
+| 3   | RLS integration test needs SUPABASE_URL in CI secrets (Phase 7 work)         | Medium   | Noted — CI job will skip until secrets added                                                                                                        |
 
 ---
 

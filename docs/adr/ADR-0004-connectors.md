@@ -55,7 +55,7 @@ CLAUDE.md's "Confirmed Tech Stack" already locks in-process TypeScript cron jobs
 **Negative / Trade-offs:**
 
 - The mock/real split means Phase 3's "passing tests" only prove the abstraction and CRUD plumbing work — they say nothing about real Zoho/Tally/WhatsApp API behavior. That verification has to happen again in Phase 4/5 against live provider sandboxes, the same lesson learned the hard way with the Phase 2 auth bug (see PROGRESS.md Process Note)
-- If a pilot customer turns out to be Tally-only, Phase 5 effectively gains an unplanned sub-project (build + deploy + support the relay agent) that a Zoho-only pilot would not require
+- If a pilot customer turns out to be Tally-only, Phase 5 effectively gains an unplanned sub-project (build + deploy + support the relay agent) that a Zoho-only pilot would not require — **resolved 2026-06-16: owner has chosen Zoho Books as the accounting tool for v1/pilot, so the relay agent is deprioritized indefinitely; build it only if a Tally-only customer later requires it**
 
 ---
 
