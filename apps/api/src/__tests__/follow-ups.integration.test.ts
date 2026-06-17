@@ -35,7 +35,7 @@ describe.skipIf(!hasSupabase)('Follow-ups: full route path', () => {
   const password = 'Test1234!FollowUps'
 
   beforeAll(async () => {
-    process.env.ENCRYPTION_KEY ??= 'a'.repeat(64)
+    if (!process.env.ENCRYPTION_KEY) process.env.ENCRYPTION_KEY = 'a'.repeat(64)
     app = await createApp(loadEnv())
     await app.ready()
 

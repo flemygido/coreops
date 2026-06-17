@@ -14,6 +14,10 @@ interface Env {
   // Ranked "provider:model" candidates for the follow-up-draft AI use, most
   // affordable first — see apps/api/src/llm/model-ranking.ts and ADR-0005 Amendment.
   LLM_RANKING_FOLLOW_UP_DRAFT: string
+  // Cron expression for the daily receivables workflow job (default: 7am IST = 1:30 UTC)
+  WORKFLOW_CRON: string
+  // Origin(s) the dashboard runs on — added to CORS allow-list (comma-separated)
+  DASHBOARD_ORIGIN: string
 }
 
 function required(name: string): string {
@@ -39,6 +43,8 @@ export function loadEnv(): Env {
     LLM_RANKING_FOLLOW_UP_DRAFT:
       process.env.LLM_RANKING_FOLLOW_UP_DRAFT ??
       'openai:gpt-5-nano,openai:gpt-5-mini,anthropic:claude-haiku-4-5-20251001,anthropic:claude-sonnet-4-6',
+    WORKFLOW_CRON: process.env.WORKFLOW_CRON ?? '30 1 * * *',
+    DASHBOARD_ORIGIN: process.env.DASHBOARD_ORIGIN ?? 'http://localhost:3001',
   }
 }
 

@@ -11,6 +11,7 @@ import { briefingsRoutes } from './routes/briefings.js'
 import { followUpsRoutes } from './routes/follow-ups.js'
 import { receivablesRoutes } from './routes/receivables.js'
 import { connectedAccountsRoutes } from './routes/connected-accounts.js'
+import { workflowRoutes } from './routes/workflow.js'
 import type { Env } from './env.js'
 
 export async function createApp(env: Env) {
@@ -23,7 +24,14 @@ export async function createApp(env: Env) {
   app.decorate('env', env)
 
   await app.register(helmet)
-  await app.register(cors, { origin: false })
+  const allowedOrigins = env.DASHBOARD_ORIGIN.split(',').map((o) => o.trim())
+  await app.register(cors, {
+    origin: (origin, cb) => {
+      if (!origin || allowedOrigins.includes(origin)) return cb(null, true)
+      cb(new Error('Not allowed by CORS'), false)
+    },
+    credentials: true,
+  })
   await app.register(errorsPlugin)
   await app.register(supabaseAdminPlugin)
   await app.register(authPlugin)
@@ -35,6 +43,7 @@ export async function createApp(env: Env) {
   await app.register(followUpsRoutes, { prefix: '/v1' })
   await app.register(receivablesRoutes, { prefix: '/v1' })
   await app.register(connectedAccountsRoutes, { prefix: '/v1' })
+  await app.register(workflowRoutes, { prefix: '/v1' })
 
   return app
 }

@@ -6,9 +6,9 @@ Living progress tracker. Updated at the end of every phase. Read this alongside 
 
 ## Current Phase
 
-**Phase 4 — AI/Agent Layer** | Status: **COMPLETE and MERGED** (`main`, commit `9f768c7`) — see ADR-0005
+**Phase 5 — End-to-end receivables recovery workflow** | Status: **IN PROGRESS** (PR open, pending CI + merge)
 
-**Post-Phase-4 enhancement (2026-06-17):** multi-provider, cost-ranked model resolution (Anthropic + OpenAI) — **COMPLETE and MERGED** (`main`, commit `10c6a02`, PR #3) — see ADR-0005 Amendment.
+Phase 4 previously complete: **MERGED** (`main`, commit `9f768c7`). Multi-provider LLM: **MERGED** (`main`, commit `10c6a02`, PR #3).
 
 ---
 
@@ -49,6 +49,54 @@ Living progress tracker. Updated at the end of every phase. Read this alongside 
 > **Found and fixed in Phase 4** because Phase 4's `drafted_text` output has to land in this exact table. Fixed the schema and the PATCH handler's column names; added `apps/api/src/__tests__/follow-ups.integration.test.ts` (list, filter by status, approve → `approved_at` set, mark sent → `sent_at` set, 404 on missing id) and ran it against live local Supabase — all pass.
 >
 > **Lesson reinforced:** a route that only has an auth-rejection test is unverified, full stop — this is the second time this exact blind spot produced a real bug (see Phase 2 auth note above). Any route touching a DB table needs at least one live-Supabase test exercising its actual read/write path before being called done.
+
+---
+
+## Phase 5 Checklist
+
+### Prerequisite Research
+
+- [x] croner 10.0.1 — `new Cron(expr, opts, fn)`, `protect: true` prevents overlap, `timezone` option
+- [x] Next.js 16.2.9 + Tailwind CSS v4 — `@import "tailwindcss"` in globals.css, `@tailwindcss/postcss` plugin
+- [x] `@supabase/ssr` 0.12.0 — `createServerClient` (server components), `createBrowserClient` (client components), middleware pattern for session refresh
+- [x] React 19 peer-compatible with Next.js 16
+
+### Backend (apps/api)
+
+- [x] `croner` installed in apps/api workspace
+- [x] `env.ts` — added `WORKFLOW_CRON` (default `30 1 * * *` = 01:30 UTC / 07:00 IST) and `DASHBOARD_ORIGIN`
+- [x] `app.ts` — CORS updated to allow `DASHBOARD_ORIGIN`, `workflowRoutes` registered
+- [x] `server.ts` — `startDailyWorkflow(app)` called after listen
+- [x] `services/draft-follow-ups.ts` — drafts LLM follow-ups for all overdue invoices without an active pending follow-up; idempotent
+- [x] `services/send-follow-up.ts` — sends one approved follow-up via messaging connector (mock fallback if no connected account)
+- [x] `routes/workflow.ts` — `POST /v1/workflow/run` (draft all), `POST /v1/follow-ups/:id/send` (send one approved)
+- [x] `jobs/daily-workflow.ts` — croner job: daily scan + draft across all businesses
+- [x] `.env.example` — new vars documented
+
+### Frontend (apps/dashboard — new)
+
+- [x] `apps/dashboard` — Next.js 16 app (App Router, TypeScript, Tailwind v4)
+- [x] `middleware.ts` — Supabase session refresh + unauthenticated redirect to `/login`
+- [x] `lib/supabase/server.ts` + `client.ts` — SSR and browser Supabase clients
+- [x] `app/login/page.tsx` — email/password login form, client-side Supabase Auth
+- [x] `app/(protected)/layout.tsx` — server-side auth guard (redirect if no session)
+- [x] `components/Nav.tsx` — nav with Overview / Follow-ups links and sign-out
+- [x] `app/(protected)/dashboard/page.tsx` — receivables stats (total overdue, count, by age bucket), overdue invoices table, "Run workflow" button
+- [x] `components/RunWorkflowButton.tsx` — client component: calls `POST /v1/workflow/run` with session token, shows result, refreshes page
+- [x] `app/(protected)/follow-ups/page.tsx` — lists all follow-ups with status counts; sorted draft → approved → sent
+- [x] `components/FollowUpCard.tsx` — per-follow-up card: drafted text, approve/skip/send actions with live status updates
+- [x] `apps/dashboard/.env.local.example` — documented required dashboard env vars
+
+### Tests
+
+- [x] `src/__tests__/workflow.integration.test.ts` — end-to-end against live Supabase with mocked LLM: workflow/run (draft, idempotency), /send (rejects draft, sends approved, 404 on unknown), 401 without auth
+- [x] All three integration test files fixed: `ENCRYPTION_KEY` fallback uses `||` guard (not `??=`) so an empty env var doesn't break the test
+
+### All Checks
+
+- [x] `npm run lint` — zero errors (all workspaces)
+- [x] `npm run type-check` — zero errors (api + dashboard + shared)
+- [x] `npm test` — 90 passed, 1 skipped (eval skip-notice), against live local Supabase
 
 ---
 
@@ -233,12 +281,13 @@ Living progress tracker. Updated at the end of every phase. Read this alongside 
 
 ## Open Questions / Blockers
 
-| #   | Question / Blocker                                                                                                                                                                                                                                                                                                                                                                        | Priority | Status                                                                                                                                              |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | **RISK #1:** No confirmed paying customer — strategy is "publish to attract"                                                                                                                                                                                                                                                                                                              | High     | Open — blocks Phase 7 only                                                                                                                          |
-| 2   | Does the pilot use Zoho Books or Tally?                                                                                                                                                                                                                                                                                                                                                   | High     | **Resolved 2026-06-16 — Zoho Books.** Tally relay-agent work (ADR-0004) is deprioritized; only build it if a Tally-only customer later requires it. |
-| 3   | RLS integration test needs SUPABASE_URL in CI secrets (Phase 7 work)                                                                                                                                                                                                                                                                                                                      | Medium   | Noted — CI job will skip until secrets added                                                                                                        |
-| 4   | LLM eval suite (`follow-up-draft.eval.test.ts`) has never run against any real LLM API — no `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` configured in this environment. As of 2026-06-17 it resolves via `LLM_RANKING_FOLLOW_UP_DRAFT` like production code will, so the first real run also verifies OpenAI's `zodResponseFormat` structured output works for this use, not just Anthropic's | High     | Open — must run with at least one real key before Phase 5 wires the LLM layer into the live workflow                                                |
+| #   | Question / Blocker                                                                                                                                                                                                                                                                                                                                                                        | Priority | Status                                                                                                                                                                                                          |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **RISK #1:** No confirmed paying customer — strategy is "publish to attract"                                                                                                                                                                                                                                                                                                              | High     | Open — blocks Phase 7 only                                                                                                                                                                                      |
+| 2   | Does the pilot use Zoho Books or Tally?                                                                                                                                                                                                                                                                                                                                                   | High     | **Resolved 2026-06-16 — Zoho Books.** Tally relay-agent work (ADR-0004) is deprioritized; only build it if a Tally-only customer later requires it.                                                             |
+| 3   | RLS integration test needs SUPABASE_URL in CI secrets (Phase 7 work)                                                                                                                                                                                                                                                                                                                      | Medium   | Noted — CI job will skip until secrets added                                                                                                                                                                    |
+| 4   | LLM eval suite (`follow-up-draft.eval.test.ts`) has never run against any real LLM API — no `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` configured in this environment. As of 2026-06-17 it resolves via `LLM_RANKING_FOLLOW_UP_DRAFT` like production code will, so the first real run also verifies OpenAI's `zodResponseFormat` structured output works for this use, not just Anthropic's | High     | **Resolved 2026-06-17** — ran against `openai:gpt-5-nano` (cost-ranked first configured provider); all 5 eval cases passed (3 golden-set drafts + 1 end-to-end draftFollowUp); guardrails passed on real output |
+| 5   | Dashboard needs a seeded owner user and business row to show data — no built-in onboarding in Phase 5                                                                                                                                                                                                                                                                                     | Medium   | Open — create a user via Supabase Studio (http://localhost:54323) and insert a `businesses` row; Phase 6 will add first-run onboarding                                                                          |
 
 ---
 
