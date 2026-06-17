@@ -65,23 +65,35 @@ else
   SUPABASE_SERVICE_ROLE_KEY=$(echo "$SUPA_JSON" | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['SERVICE_ROLE_KEY'])")
 fi
 
-export SUPABASE_URL SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY
 ok "Connected at $SUPABASE_URL"
 
-# Also export the other required vars from .env into this shell
+# Save live Supabase values before sourcing .env (which has empty placeholders)
+_SUPA_URL="$SUPABASE_URL"
+_SUPA_ANON="$SUPABASE_ANON_KEY"
+_SUPA_SRK="$SUPABASE_SERVICE_ROLE_KEY"
+
+# Load the rest of .env (ENCRYPTION_KEY, LLM keys, PORT, …)
 set -a
 # shellcheck disable=SC1091
 source .env
 set +a
 
-# ── 3. Build ──────────────────────────────────────────────────────────────────
+# Restore live Supabase values — these win over the empty .env placeholders
+export SUPABASE_URL="$_SUPA_URL"
+export SUPABASE_ANON_KEY="$_SUPA_ANON"
+export SUPABASE_SERVICE_ROLE_KEY="$_SUPA_SRK"
+
+# ── 3. Build shared package (API uses tsx directly; only shared needs a dist/) ─
 step "Building"
 
 npm run build -w packages/shared >/dev/null 2>&1 && ok "packages/shared" || { fail "packages/shared build failed"; exit 1; }
-npm run build -w apps/api        >/dev/null 2>&1 && ok "apps/api"        || { fail "apps/api build failed";        exit 1; }
 
 # ── 4. Start services ─────────────────────────────────────────────────────────
 step "Starting services"
+
+# Kill any stale processes on our ports before starting fresh
+lsof -ti :3000 -ti :3001 | xargs kill -9 2>/dev/null || true
+sleep 1
 
 # API — inherits the exported env vars above
 npm run dev -w apps/api        > /tmp/coreops-api.log 2>&1 &
