@@ -36,7 +36,7 @@ export default function RunWorkflowButton() {
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
-        throw new Error(body.message ?? `Request failed: ${res.status}`)
+        throw new Error(body.error?.message ?? body.message ?? `Request failed: ${res.status}`)
       }
 
       const data = (await res.json()) as WorkflowResult

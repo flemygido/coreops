@@ -76,7 +76,7 @@ export default function FollowUpCard({
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
-        throw new Error(body.message ?? `Failed: ${res.status}`)
+        throw new Error(body.error?.message ?? body.message ?? `Failed: ${res.status}`)
       }
       setCurrentStatus(newStatus)
       router.refresh()
@@ -98,7 +98,11 @@ export default function FollowUpCard({
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
-        throw new Error(body.message ?? `Failed: ${res.status}`)
+        throw new Error(body.error?.message ?? body.message ?? `Failed: ${res.status}`)
+      }
+      const data = (await res.json()) as { ok: boolean; message: string }
+      if (!data.ok) {
+        throw new Error(data.message ?? 'Message failed to send')
       }
       setCurrentStatus('sent')
       router.refresh()

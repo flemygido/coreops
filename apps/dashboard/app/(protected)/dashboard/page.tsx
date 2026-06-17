@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import RunWorkflowButton from '@/components/RunWorkflowButton'
 
+export const dynamic = 'force-dynamic'
+
 function formatRupees(amount: number) {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
@@ -28,7 +30,9 @@ export default async function DashboardPage() {
     )
   }
 
-  // Load open/partial invoices with their customers
+  // Load open/partial invoices with their customers.
+  // Explicitly filtering to open/partial ensures paid/void/written_off invoices
+  // are never shown as overdue even if amount_paid hasn't synced yet.
   const { data: invoices } = await supabase
     .from('invoices')
     .select(

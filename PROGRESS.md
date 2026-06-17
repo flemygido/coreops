@@ -6,8 +6,9 @@ Living progress tracker. Updated at the end of every phase. Read this alongside 
 
 ## Current Phase
 
-**Phase 5 — End-to-end receivables recovery workflow** | Status: **IN PROGRESS** (PR open, pending CI + merge)
+**Phase 6 — Observability, cost controls, security + DPDP hardening** | Status: **PENDING**
 
+Phase 5 previously complete: PR open on `feat/phase-5-receivables-workflow`, pending CI + merge.
 Phase 4 previously complete: **MERGED** (`main`, commit `9f768c7`). Multi-provider LLM: **MERGED** (`main`, commit `10c6a02`, PR #3).
 
 ---
@@ -97,6 +98,23 @@ Phase 4 previously complete: **MERGED** (`main`, commit `9f768c7`). Multi-provid
 - [x] `npm run lint` — zero errors (all workspaces)
 - [x] `npm run type-check` — zero errors (api + dashboard + shared)
 - [x] `npm test` — 90 passed, 1 skipped (eval skip-notice), against live local Supabase
+
+### Launcher + Owner User
+
+- [x] `launch.command` — macOS double-click launcher: validates `.env`, starts Supabase, injects live keys, kills stale ports, starts API + dashboard, opens browser
+- [x] `scripts/create-owner.mts` — creates/finds owner user and business row; credentials: `owner@coreops.local` / `CoreOps2026!`
+
+### Round 1 Validation (2026-06-17)
+
+Full 6-persona review (`validation/VALIDATION_LOG.md`). Three BLOCKERs found and fixed:
+
+1. **Error messages invisible in UI** — `FollowUpCard.tsx` and `RunWorkflowButton.tsx` read `body.message` but the API error format is `{ error: { message } }`. Fixed to `body.error?.message ?? body.message ?? ...`.
+2. **Send failure silently shown as Sent** — `sendMessage()` only checked HTTP status, not `data.ok`. The API returns HTTP 200 with `{ ok: false }` on connector failure. Fixed with an explicit `data.ok` check.
+3. **PATCH /status allowed direct 'sent'/'failed' write** — An authenticated user could skip the actual WhatsApp send and directly mark a follow-up as sent. Restricted `PatchStatusBody` schema to `approved | skipped` only.
+
+Post-fix: `npm test` 65+20 = 85 pass, 21 skipped, 0 type errors.
+
+Deferred to Phase 6: rate limiting on `/v1/workflow/run`, 401→/login redirect in client, LLM cost widget, DSO metric, guardrail case-sensitivity.
 
 ---
 
