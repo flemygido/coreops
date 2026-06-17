@@ -8,7 +8,7 @@ Living progress tracker. Updated at the end of every phase. Read this alongside 
 
 **Phase 6 — Observability, cost controls, security + DPDP hardening** | Status: **PENDING**
 
-Phase 5 previously complete: PR open on `feat/phase-5-receivables-workflow`, pending CI + merge.
+Phase 5 previously complete: **MERGED** (`main`, commit `fa1fcff`, PR #4).
 Phase 4 previously complete: **MERGED** (`main`, commit `9f768c7`). Multi-provider LLM: **MERGED** (`main`, commit `10c6a02`, PR #3).
 
 ---
@@ -127,6 +127,7 @@ Deferred to Phase 6: rate limiting on `/v1/workflow/run`, 401→/login redirect 
 | 2     | COMPLETE | 2026-06-16 | 558c690                       |
 | 3     | COMPLETE | 2026-06-16 | 851bf89 (squash-merged PR #1) |
 | 4     | COMPLETE | 2026-06-16 | 9f768c7 (squash-merged PR #2) |
+| 5     | COMPLETE | 2026-06-17 | fa1fcff (squash-merged PR #4) |
 
 ---
 
