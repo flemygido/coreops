@@ -35,7 +35,7 @@ describe.skipIf(!hasSupabase)('Follow-ups: full route path', () => {
   const password = 'Test1234!FollowUps'
 
   beforeAll(async () => {
-    process.env.ENCRYPTION_KEY ??= 'a'.repeat(64)
+    if (!process.env.ENCRYPTION_KEY) process.env.ENCRYPTION_KEY = 'a'.repeat(64)
     app = await createApp(loadEnv())
     await app.ready()
 
@@ -149,17 +149,16 @@ describe.skipIf(!hasSupabase)('Follow-ups: full route path', () => {
     expect(body.approved_at).not.toBeNull()
   })
 
-  it('marks a follow-up as sent and sets sent_at', async () => {
+  it('rejects PATCH to sent — sent is set only by the send endpoint', async () => {
+    // PATCH /status is restricted to approved | skipped.
+    // Marking a follow-up as sent directly would bypass the actual WhatsApp send.
     const res = await app.inject({
       method: 'PATCH',
       url: `/v1/follow-ups/${followUpId}/status`,
       headers: { authorization: `Bearer ${accessToken}` },
       payload: { status: 'sent' },
     })
-    expect(res.statusCode).toBe(200)
-    const body = res.json()
-    expect(body.status).toBe('sent')
-    expect(body.sent_at).not.toBeNull()
+    expect(res.statusCode).toBe(400)
   })
 
   it('404s when patching a non-existent follow-up', async () => {

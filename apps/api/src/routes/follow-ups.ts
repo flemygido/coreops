@@ -45,13 +45,9 @@ const ListQuery = Type.Object({
 const IdParam = Type.Object({ id: Type.String({ format: 'uuid' }) })
 
 const PatchStatusBody = Type.Object({
-  status: Type.Union([
-    Type.Literal('draft'),
-    Type.Literal('approved'),
-    Type.Literal('sent'),
-    Type.Literal('failed'),
-    Type.Literal('skipped'),
-  ]),
+  // Only allow owner-driven transitions. 'sent' and 'failed' are set
+  // exclusively by POST /v1/follow-ups/:id/send (the actual send flow).
+  status: Type.Union([Type.Literal('approved'), Type.Literal('skipped')]),
 })
 
 export const followUpsRoutes: FastifyPluginAsync = async (app) => {
