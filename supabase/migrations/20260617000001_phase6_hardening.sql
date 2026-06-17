@@ -37,4 +37,28 @@ create policy "tenant: select own erasure requests"
   on erasure_requests for select
   using (business_id = get_current_business_id());
 
+-- INSERT policy required: RLS blocks all operations not covered by a policy,
+-- even if a GRANT exists. Without this, the DPDP erasure tombstone insert fails.
+create policy "tenant: insert own erasure requests"
+  on erasure_requests for insert
+  with check (business_id = get_current_business_id());
+
 grant select, insert on erasure_requests to authenticated;
+
+-- ── Explicit service_role grants ──────────────────────────────────────────────
+-- service_role has BYPASSRLS (skips RLS policies) but still needs table-level
+-- GRANT privileges in Supabase local Docker. Without these, any service-role
+-- query (budget check, daily cron) hits "permission denied for table X".
+grant select, insert, update, delete on businesses         to service_role;
+grant select, insert, update, delete on connected_accounts to service_role;
+grant select, insert, update, delete on customers          to service_role;
+grant select, insert, update, delete on invoices           to service_role;
+grant select, insert                  on payments           to service_role;
+grant select, insert, update          on briefings          to service_role;
+grant select, insert, update          on follow_ups         to service_role;
+grant select, insert                  on audit_log          to service_role;
+grant select, insert                  on consent_records    to service_role;
+grant select, insert                  on llm_usage_log      to service_role;
+grant select, insert                  on erasure_requests   to service_role;
+grant usage on sequence audit_log_id_seq      to service_role;
+grant usage on sequence llm_usage_log_id_seq  to service_role;
