@@ -4,6 +4,10 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
+function isUnauthorized(status: number) {
+  return status === 401
+}
+
 interface WorkflowResult {
   drafted: number
   skipped_already_pending: number
@@ -35,6 +39,10 @@ export default function RunWorkflowButton() {
       })
 
       if (!res.ok) {
+        if (isUnauthorized(res.status)) {
+          router.push('/login')
+          return
+        }
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error?.message ?? body.message ?? `Request failed: ${res.status}`)
       }

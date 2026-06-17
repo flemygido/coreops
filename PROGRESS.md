@@ -6,7 +6,7 @@ Living progress tracker. Updated at the end of every phase. Read this alongside 
 
 ## Current Phase
 
-**Phase 6 — Observability, cost controls, security + DPDP hardening** | Status: **PENDING**
+**Phase 6 — Observability, cost controls, security + DPDP hardening** | Status: **IN PROGRESS** (PR open, pending CI + merge)
 
 Phase 5 previously complete: **MERGED** (`main`, commit `fa1fcff`, PR #4).
 Phase 4 previously complete: **MERGED** (`main`, commit `9f768c7`). Multi-provider LLM: **MERGED** (`main`, commit `10c6a02`, PR #3).
@@ -128,6 +128,49 @@ Deferred to Phase 6: rate limiting on `/v1/workflow/run`, 401→/login redirect 
 | 3     | COMPLETE | 2026-06-16 | 851bf89 (squash-merged PR #1) |
 | 4     | COMPLETE | 2026-06-16 | 9f768c7 (squash-merged PR #2) |
 | 5     | COMPLETE | 2026-06-17 | fa1fcff (squash-merged PR #4) |
+
+---
+
+## Phase 6 Checklist
+
+### Prerequisite Research
+
+- [x] `@fastify/rate-limit` v11.0.0 — compatible with Fastify 5; `config.rateLimit` per-route override
+- [x] `@fastify/helmet` v13.0.2 — already installed; explicit `contentSecurityPolicy` directive needed
+- [x] Audit triggers — `customers` table was missing coverage; added in migration
+- [x] DPDP Rules 2025 — erasure must cascade + audit log; consent withdrawal already modelled
+
+### Backend (apps/api)
+
+- [x] `supabase/migrations/20260617000001_phase6_hardening.sql` — audit trigger on customers, erasure tombstone table (`erasure_requests`) with RLS
+- [x] `env.ts` — `LLM_DAILY_BUDGET_USD` (default $1.00/day), `RETENTION_DAYS` (default 365)
+- [x] `services/budget-check.ts` — daily LLM spend guard; 429 BUDGET_EXCEEDED when cap reached
+- [x] `services/retention.ts` — purge terminal follow-ups beyond retention window
+- [x] `services/draft-follow-ups.ts` — calls `checkDailyBudget` before LLM loop
+- [x] `jobs/retention.ts` — weekly cron (Sun 02:00 UTC) across all businesses
+- [x] `routes/dpdp.ts` — `DELETE /v1/customers/:id/erase` (hard erase + tombstone), `GET /v1/dpdp/summary` (aggregate counts)
+- [x] `routes/workflow.ts` — tighter per-route rate limit: 5 req / 5 min / IP
+- [x] `app.ts` — `@fastify/rate-limit` (200/min global), explicit CSP via helmet, dpdpRoutes registered
+- [x] `server.ts` — `startRetentionJob()` wired in
+- [x] `.env.example` — new vars documented
+
+### Frontend (apps/dashboard)
+
+- [x] `components/RunWorkflowButton.tsx` — 401 → redirect to /login
+- [x] `components/FollowUpCard.tsx` — 401 → redirect to /login (both patchStatus and sendMessage)
+- [x] `app/(protected)/dashboard/page.tsx` — LLM cost widget (AI cost this month, in USD)
+- [x] `next.config.ts` — CSP headers + X-Frame-Options + X-Content-Type-Options + Permissions-Policy
+
+### Tests
+
+- [x] `src/__tests__/budget-check.test.ts` — 5 unit tests (under/at/over limit, DB error)
+- [x] `src/__tests__/dpdp.integration.test.ts` — summary counts, customer erasure + tombstone, 404, 401
+
+### All Checks
+
+- [x] `npm run lint` — zero errors
+- [x] `npm run type-check` — zero errors (all workspaces)
+- [x] `npm test` — 70+20 = 90 passed, 25 skipped (integration), zero failures
 
 ---
 

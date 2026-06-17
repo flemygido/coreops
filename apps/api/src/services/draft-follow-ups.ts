@@ -6,6 +6,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getReceivablesState } from './receivables-state.js'
 import { draftFollowUp } from '../llm/follow-up-draft.js'
+import { checkDailyBudget } from './budget-check.js'
 import type { LlmClient } from '../llm/types.js'
 
 export interface DraftFollowUpsResult {
@@ -19,13 +20,18 @@ export async function draftFollowUps(
   supabase: SupabaseClient,
   adminSupabase: SupabaseClient,
   businessId: string,
-  llm: LlmClient
+  llm: LlmClient,
+  dailyBudgetUsd = 1.0
 ): Promise<DraftFollowUpsResult> {
   const state = await getReceivablesState(supabase, businessId)
 
   if (state.overdue_invoices.length === 0) {
     return { drafted: 0, skipped_already_pending: 0, failed: 0, errors: [] }
   }
+
+  // Abort the entire run if the daily LLM budget is already exhausted.
+  // Use adminSupabase so the cron job (no user context) can also query the log.
+  await checkDailyBudget(adminSupabase, businessId, dailyBudgetUsd)
 
   // Find invoice IDs that already have an active (non-skipped) follow-up
   const invoiceIds = state.overdue_invoices.map((i) => i.invoice_id)

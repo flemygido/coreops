@@ -32,10 +32,14 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
 
   // POST /v1/workflow/run — draft follow-ups for all overdue invoices that
   // don't already have an active one. Idempotent: safe to re-run.
+  // Tighter rate limit: max 5 calls per 5 minutes per IP (LLM cost protection).
   app.post(
     '/workflow/run',
     {
       ...auth,
+      config: {
+        rateLimit: { max: 5, timeWindow: '5 minutes' },
+      },
       schema: { response: { 200: WorkflowRunResponse } },
     },
     async (req) => {
@@ -48,7 +52,13 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
       // Use admin client for cost logging (llm_usage_log requires service-role write)
       const adminSupabase = createClient(app.env.SUPABASE_URL, app.env.SUPABASE_SERVICE_ROLE_KEY)
 
-      const result = await draftFollowUps(req.supabase, adminSupabase, req.businessId, llm)
+      const result = await draftFollowUps(
+        req.supabase,
+        adminSupabase,
+        req.businessId,
+        llm,
+        app.env.LLM_DAILY_BUDGET_USD
+      )
       return result
     }
   )

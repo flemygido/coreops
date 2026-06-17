@@ -18,6 +18,10 @@ interface Env {
   WORKFLOW_CRON: string
   // Origin(s) the dashboard runs on — added to CORS allow-list (comma-separated)
   DASHBOARD_ORIGIN: string
+  // Daily LLM spend cap per business in USD. Drafting aborts if exceeded.
+  LLM_DAILY_BUDGET_USD: number
+  // Days to keep terminal follow-ups (sent/skipped/failed) before retention purge.
+  RETENTION_DAYS: number
 }
 
 function required(name: string): string {
@@ -45,6 +49,8 @@ export function loadEnv(): Env {
       'openai:gpt-5-nano,openai:gpt-5-mini,anthropic:claude-haiku-4-5-20251001,anthropic:claude-sonnet-4-6',
     WORKFLOW_CRON: process.env.WORKFLOW_CRON ?? '30 1 * * *',
     DASHBOARD_ORIGIN: process.env.DASHBOARD_ORIGIN ?? 'http://localhost:3001',
+    LLM_DAILY_BUDGET_USD: parseFloat(process.env.LLM_DAILY_BUDGET_USD ?? '1.00'),
+    RETENTION_DAYS: parseInt(process.env.RETENTION_DAYS ?? '365', 10),
   }
 }
 

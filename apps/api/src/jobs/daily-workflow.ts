@@ -37,7 +37,13 @@ export function startDailyWorkflow(app: FastifyInstance): Cron {
         // Use a per-business anon client scoped via RLS isn't possible server-side
         // without a user token. Use admin client for reads, which is safe because
         // this job only runs server-side with no user context.
-        const result = await draftFollowUps(admin, admin, biz.id as string, llm)
+        const result = await draftFollowUps(
+          admin,
+          admin,
+          biz.id as string,
+          llm,
+          env.LLM_DAILY_BUDGET_USD
+        )
         app.log.info({ job: 'daily-workflow', businessId: biz.id, ...result }, 'Workflow complete')
       }
     } catch (err) {

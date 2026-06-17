@@ -30,6 +30,19 @@ export default async function DashboardPage() {
     )
   }
 
+  // LLM cost this calendar month
+  const monthStart = new Date()
+  monthStart.setUTCDate(1)
+  monthStart.setUTCHours(0, 0, 0, 0)
+
+  const { data: usageRows } = await supabase
+    .from('llm_usage_log')
+    .select('cost_usd')
+    .eq('business_id', business.id)
+    .gte('created_at', monthStart.toISOString())
+
+  const llmCostThisMonth = (usageRows ?? []).reduce((sum, r) => sum + Number(r.cost_usd), 0)
+
   // Load open/partial invoices with their customers.
   // Explicitly filtering to open/partial ensures paid/void/written_off invoices
   // are never shown as overdue even if amount_paid hasn't synced yet.
@@ -75,7 +88,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Total overdue</p>
           <p className="text-2xl font-bold text-red-600 mt-1">{formatRupees(totalOverdue)}</p>
@@ -85,6 +98,12 @@ export default async function DashboardPage() {
             Invoices overdue
           </p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{overdueInvoices.length}</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+            AI cost (month)
+          </p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">${llmCostThisMonth.toFixed(4)}</p>
         </div>
         {Object.entries(byBucket).map(([label, count]) => (
           <div key={label} className="bg-white rounded-xl border border-gray-200 p-5">

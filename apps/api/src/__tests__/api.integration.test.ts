@@ -23,6 +23,8 @@ const testEnv: Env = {
   LLM_RANKING_FOLLOW_UP_DRAFT: 'openai:gpt-5-nano,anthropic:claude-haiku-4-5-20251001',
   WORKFLOW_CRON: '30 1 * * *',
   DASHBOARD_ORIGIN: 'http://localhost:3001',
+  LLM_DAILY_BUDGET_USD: 1.0,
+  RETENTION_DAYS: 365,
 }
 
 describe('API auth enforcement', () => {
