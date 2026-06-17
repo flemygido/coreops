@@ -41,6 +41,11 @@ describe.skipIf(!hasSupabase)('Workflow: end-to-end with mocked LLM', () => {
 
   beforeAll(async () => {
     if (!process.env.ENCRYPTION_KEY) process.env.ENCRYPTION_KEY = 'a'.repeat(64)
+    // getLlmClientForRanking throws if no key is configured — set a dummy so the
+    // route can build the client object; draftFollowUp is fully mocked so it's never called.
+    if (!process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY) {
+      process.env.ANTHROPIC_API_KEY = 'sk-ant-test-dummy'
+    }
     app = await createApp(loadEnv())
     await app.ready()
 
