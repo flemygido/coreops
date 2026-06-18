@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import RunWorkflowButton from '@/components/RunWorkflowButton'
+import { calcDsoDays, calcRupeesRecovered } from '@coreops/shared'
 
 export const dynamic = 'force-dynamic'
 
@@ -42,6 +43,47 @@ export default async function DashboardPage() {
     .gte('created_at', monthStart.toISOString())
 
   const llmCostThisMonth = (usageRows ?? []).reduce((sum, r) => sum + Number(r.cost_usd), 0)
+
+  // DSO + rupees recovered (pilot success metrics)
+  const thirtyDaysAgo = new Date()
+  thirtyDaysAgo.setUTCDate(thirtyDaysAgo.getUTCDate() - 30)
+
+  const [{ data: openInvoicesForDso }, { data: recentInvoices }, { data: sentFollowUps }] =
+    await Promise.all([
+      supabase
+        .from('invoices')
+        .select('amount, amount_paid')
+        .eq('business_id', business.id)
+        .in('status', ['open', 'partial']),
+      supabase
+        .from('invoices')
+        .select('amount')
+        .eq('business_id', business.id)
+        .gte('issue_date', thirtyDaysAgo.toISOString().split('T')[0]),
+      supabase
+        .from('follow_ups')
+        .select('invoice_id')
+        .eq('business_id', business.id)
+        .eq('status', 'sent'),
+    ])
+
+  const ar = (openInvoicesForDso ?? []).reduce(
+    (s, inv) => s + Number(inv.amount) - Number(inv.amount_paid),
+    0
+  )
+  const creditSales30d = (recentInvoices ?? []).reduce((s, inv) => s + Number(inv.amount), 0)
+  const dsoDays = calcDsoDays(ar, creditSales30d)
+
+  const sentInvoiceIds = (sentFollowUps ?? []).map((fu: { invoice_id: string }) => fu.invoice_id)
+  let rupeesRecovered = 0
+  if (sentInvoiceIds.length > 0) {
+    const { data: touchedInvoices } = await supabase
+      .from('invoices')
+      .select('amount, amount_paid')
+      .eq('business_id', business.id)
+      .in('id', sentInvoiceIds)
+    rupeesRecovered = calcRupeesRecovered(touchedInvoices ?? [])
+  }
 
   // Load open/partial invoices with their customers.
   // Explicitly filtering to open/partial ensures paid/void/written_off invoices
@@ -87,7 +129,7 @@ export default async function DashboardPage() {
         <RunWorkflowButton />
       </div>
 
-      {/* Stats */}
+      {/* Primary metrics */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Total overdue</p>
@@ -100,11 +142,27 @@ export default async function DashboardPage() {
           <p className="text-2xl font-bold text-gray-900 mt-1">{overdueInvoices.length}</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">DSO (days)</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">
+            {dsoDays !== null ? dsoDays : '—'}
+          </p>
+          <p className="text-xs text-gray-400 mt-0.5">30-day rolling</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Recovered</p>
+          <p className="text-2xl font-bold text-green-600 mt-1">{formatRupees(rupeesRecovered)}</p>
+          <p className="text-xs text-gray-400 mt-0.5">via CoreOps</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
             AI cost (month)
           </p>
           <p className="text-2xl font-bold text-gray-900 mt-1">${llmCostThisMonth.toFixed(4)}</p>
         </div>
+      </div>
+
+      {/* Age buckets */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {Object.entries(byBucket).map(([label, count]) => (
           <div key={label} className="bg-white rounded-xl border border-gray-200 p-5">
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
