@@ -75,6 +75,10 @@ export default function FollowUpCard({
         body: JSON.stringify({ status: newStatus }),
       })
       if (!res.ok) {
+        if (res.status === 401) {
+          router.push('/login')
+          return
+        }
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error?.message ?? body.message ?? `Failed: ${res.status}`)
       }
@@ -97,6 +101,10 @@ export default function FollowUpCard({
         headers: { Authorization: `Bearer ${token}` },
       })
       if (!res.ok) {
+        if (res.status === 401) {
+          router.push('/login')
+          return
+        }
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error?.message ?? body.message ?? `Failed: ${res.status}`)
       }
