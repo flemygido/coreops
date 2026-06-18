@@ -6,8 +6,9 @@ Living progress tracker. Updated at the end of every phase. Read this alongside 
 
 ## Current Phase
 
-**Phase 6 — Observability, cost controls, security + DPDP hardening** | Status: **IN PROGRESS** (PR open, pending CI + merge)
+**Phase 7 — Pilot deployment** | Status: **BLOCKED** (no confirmed paying customer — see RISK #1 in CLAUDE.md)
 
+Phase 6 previously complete: **MERGED** (`main`, commit `6e29586`, PR #5).
 Phase 5 previously complete: **MERGED** (`main`, commit `fa1fcff`, PR #4).
 Phase 4 previously complete: **MERGED** (`main`, commit `9f768c7`). Multi-provider LLM: **MERGED** (`main`, commit `10c6a02`, PR #3).
 
