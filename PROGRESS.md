@@ -6,9 +6,10 @@ Living progress tracker. Updated at the end of every phase. Read this alongside 
 
 ## Current Phase
 
-**Phase 7 — Pilot deployment** | Status: **BLOCKED** (no confirmed paying customer — see RISK #1 in CLAUDE.md)
+**Phase 6 gap-close (steps 3 + 4 merged 2026-06-18)** | next: owner approval of Phase 6.5 live-integrations proposal (step 5 below)
 
 Phase 6 previously complete: **MERGED** (`main`, commit `6e29586`, PR #5).
+Gap-close commit: `f7c7dee` (on `main`, 2026-06-18) — eval suite 5→22 cases with grounding assertions + CI eval job + DSO pilot metric.
 Phase 5 previously complete: **MERGED** (`main`, commit `fa1fcff`, PR #4).
 Phase 4 previously complete: **MERGED** (`main`, commit `9f768c7`). Multi-provider LLM: **MERGED** (`main`, commit `10c6a02`, PR #3).
 
@@ -116,6 +117,50 @@ Full 6-persona review (`validation/VALIDATION_LOG.md`). Three BLOCKERs found and
 Post-fix: `npm test` 65+20 = 85 pass, 21 skipped, 0 type errors.
 
 Deferred to Phase 6: rate limiting on `/v1/workflow/run`, 401→/login redirect in client, LLM cost widget, DSO metric, guardrail case-sensitivity.
+
+---
+
+## Phase 6 Gap-Close Checklist (commit `f7c7dee`, 2026-06-18)
+
+### Step 1 — Stale DB (complete)
+
+- [x] `supabase db reset` applied all 7 Phase 0-6 migrations; 95/95 integration tests passed post-reset.
+
+### Step 2 — Model string verification (complete)
+
+- [x] All 5 configured model strings (claude-haiku-4-5-20251001, claude-sonnet-4-6, claude-opus-4-8, gpt-5-nano, gpt-5-mini) confirmed valid via real API calls. `max_tokens` vs `max_completion_tokens` discrepancy was in the verification script only — production client (`chat.completions.parse()`) does not set `max_tokens`, so this is not a production bug.
+
+### Step 3 — Eval suite in CI (complete)
+
+- [x] `apps/api/src/llm/__tests__/follow-up-draft.eval.test.ts` — expanded from 5 → 22 cases: all four age-bucket boundaries (1d/30d/31d/60d/61d/90d/121d/155d), very small (₹2,500) and very large (₹500,000) amounts, odd amount (₹12,347), partial payments, round numbers, customer name formats (dots, ampersand, Pvt Ltd, long names)
+- [x] `assertAmountGrounding()` — strips ₹ and commas, requires exact `amount_outstanding` digit string to appear in every draft; any hallucinated or missing figure fails the test
+- [x] `.github/workflows/ci.yml` — new `eval` job: runs `LLM_RANKING_FOLLOW_UP_DRAFT=openai:gpt-5-nano` via `OPENAI_API_KEY` secret; skips on forks where secret is absent; ~$0.003/run budget
+- [x] `apps/api/package.json` — added `test:eval` script
+
+### Step 4 — DSO pilot metric (complete)
+
+- [x] `supabase/migrations/20260618000001_dso_snapshots.sql` — `dso_snapshots` table, RLS (tenant read-only), service_role grants, sequence grant
+- [x] `packages/shared/src/dso.ts` — `calcDsoDays()` and `calcRupeesRecovered()` as pure deterministic arithmetic (no LLM — Hard Rule #6); accessible to both API and dashboard workspaces
+- [x] `packages/shared/src/index.ts` — re-exports `dso.ts`
+- [x] `apps/api/src/services/dso.ts` — `calculateDso()` (AR, credit_sales_30d, follow-ups, recovery) + `recordDsoSnapshot()` (upsert, idempotent)
+- [x] `apps/api/src/jobs/dso.ts` — croner weekly snapshot job (Sunday 03:00 UTC, 1h after retention job)
+- [x] `apps/api/src/server.ts` — `startDsoJob()` wired in
+- [x] `apps/api/src/__tests__/dso.test.ts` — 15 unit tests for `calcDsoDays` (8) and `calcRupeesRecovered` (7); all passing
+- [x] `apps/dashboard/app/(protected)/dashboard/page.tsx` — "DSO (days)" card (30-day rolling) and "Recovered" card (₹ via CoreOps) in primary metrics grid
+- [x] All 8 migrations apply cleanly; 85/85 unit tests pass
+
+### Step 5 — Phase 6.5 live integrations proposal (PENDING APPROVAL)
+
+See the full proposal in the session output above. Key decisions for the owner:
+
+1. Do you have a Meta WABA set up, or need account setup steps?
+2. Do you have a Zoho Books account to point at, or need setup steps?
+3. WhatsApp and Zoho in one PR or two?
+   **No code written until approved.**
+
+### Step 6 — "Publish to GitHub" strategy origin (flagged)
+
+CLAUDE.md says "Strategy chosen by owner" for publishing the repo publicly to attract customers. Flagged because the origin (explicit owner instruction vs. Phase 0 inference) could not be verified from history. See session output for detail. No action taken — owner must confirm or correct.
 
 ---
 
