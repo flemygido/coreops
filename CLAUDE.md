@@ -216,6 +216,7 @@ See [/docs/adr/](./docs/adr/) for all architectural decisions.
 - [ADR-0004](./docs/adr/ADR-0004-connectors.md): Provider-abstracted connectors, Tally relay-agent finding, croner orchestration decision (Phase 3)
 - [ADR-0005](./docs/adr/ADR-0005-llm-layer.md): AI/agent layer — model choice, redact-before-call privacy boundary, guardrails, cost tracking (Phase 4)
 - [ADR-0006](./docs/adr/ADR-0006-whatsapp-connector.md): Real WhatsApp connector — two-path session/template design, window tracking, feature flag, preParsing signature verification (Phase 6.5)
+- [ADR-0007](./docs/adr/ADR-0007-zoho-connector.md): Real Zoho Books connector — India DC endpoints, token persist-after-refresh, field mapping, split-payment v1 limitation (Phase 6.5)
 
 ---
 
