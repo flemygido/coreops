@@ -26,6 +26,7 @@ const testEnv: Env = {
   LLM_DAILY_BUDGET_USD: 1.0,
   RETENTION_DAYS: 365,
   WHATSAPP_ENABLED: false,
+  ZOHO_ENABLED: false,
 }
 
 describe('API auth enforcement', () => {

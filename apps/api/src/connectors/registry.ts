@@ -4,6 +4,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { ZohoBooksMockConnector } from './mocks/zoho-books.mock.js'
+import { ZohoBooksConnector } from './zoho-books.js'
 import { TallyMockConnector } from './mocks/tally.mock.js'
 import { GoogleSheetsMockConnector } from './mocks/google-sheets.mock.js'
 import { WhatsAppMockConnector } from './mocks/whatsapp.mock.js'
@@ -27,12 +28,23 @@ export function isMessagingProvider(provider: Provider): provider is MessagingPr
   return (MESSAGING_PROVIDERS as readonly string[]).includes(provider)
 }
 
+interface AccountingContext {
+  supabase?: SupabaseClient
+  connectedAccountId?: string
+}
+
 export function getAccountingConnector(
   provider: AccountingProvider,
-  credentials: ConnectorCredentials
+  credentials: ConnectorCredentials,
+  context?: AccountingContext
 ): AccountingConnector {
   switch (provider) {
     case 'zoho_books':
+      // Use the real connector when ZOHO_ENABLED=true and credentials carry the OAuth fields.
+      // Falls back to the mock so existing tests keep working without live Zoho credentials.
+      if (process.env.ZOHO_ENABLED === 'true' && credentials.client_id) {
+        return new ZohoBooksConnector(credentials, context?.supabase, context?.connectedAccountId)
+      }
       return new ZohoBooksMockConnector(credentials)
     case 'tally':
       return new TallyMockConnector(credentials)

@@ -6,7 +6,7 @@ Living progress tracker. Updated at the end of every phase. Read this alongside 
 
 ## Current Phase
 
-**Phase 6.5 — real connectors** | WhatsApp connector PR open (branch `feat/phase-6.5-whatsapp-connector`, awaiting review)
+**Phase 6.5 — real connectors** | WhatsApp connector MERGED (`main`, commit `f8f9c8d`, PR #6). Zoho Books connector LIVE-VERIFIED (2026-06-20) — PR #7 open on branch `feat/phase-6.5-zoho-connector`, awaiting merge. Full end-to-end loop proven on real systems: Zoho Books (India DC) → overdue calculator → LLM draft → WhatsApp owner briefing delivered.
 
 Phase 6 previously complete: **MERGED** (`main`, commit `6e29586`, PR #5).
 Gap-close commit: `f7c7dee` (on `main`, 2026-06-18) — eval suite 5→22 cases with grounding assertions + CI eval job + DSO pilot metric.
@@ -210,6 +210,79 @@ Post-fix + `supabase db reset` (all 9 migrations clean including `whatsapp_windo
 1. **Template approval:** `invoice_follow_up` utility template must be approved in Meta Business Manager. Until then, all cold debtor follow-ups throw `WhatsAppNoTemplateError`. No workaround — this is by design.
 2. **Meta Business Portfolio restriction:** WABA is currently restricted (flagged in CLAUDE.md since 2026-06-19). Must be resolved before any message reaches a customer.
 3. **`WHATSAPP_TEMPLATE_NAME` in credentials:** must match the approved template name exactly.
+
+### Step 7 — Phase 6.5 Zoho Books connector (PR #2, branch `feat/phase-6.5-zoho-connector`)
+
+**PR open 2026-06-19. STOP for approval + live credential verification.**
+
+#### What was built
+
+- `apps/api/src/connectors/zoho-books.ts` — real `ZohoBooksConnector` (Zoho Books REST API v3, India DC)
+  - `fetchCustomers()` — paginated contact list, mobile preferred over phone
+  - `fetchInvoices()` — paginated invoice list; `amount_paid = total - balance` (Zoho pre-calculates `balance`); Zoho status mapped to internal `InvoiceStatus`
+  - `fetchPayments()` — paginated payment list; links to `invoices[0].invoice_id` (v1 known limitation: split payments link only first invoice — documented in ADR-0007)
+  - Token management: `isTokenValid()` check before every request (5-min buffer); `refreshToken()` on expiry; **persists refreshed token to `connected_accounts.credentials_encrypted`** (multi-tenant-safe — avoids exhausting Zoho's token-generation quota)
+  - 429: fixed 60s backoff, max 3 attempts → `ZohoBooksRateLimitError` (no `Retry-After` header documented for Zoho Books)
+  - 401: one safety-net refresh + retry → `ZohoBooksAuthError` if still 401
+- `apps/api/src/connectors/registry.ts` — `getAccountingConnector` now accepts `AccountingContext { supabase?, connectedAccountId? }`; routes to real `ZohoBooksConnector` when `ZOHO_ENABLED=true` + credentials have `client_id`
+- `apps/api/src/connectors/index.ts` — re-exports `ZohoBooksConnector`, `ZohoBooksAuthError`, `ZohoBooksRateLimitError`
+- `apps/api/src/env.ts` — added `ZOHO_ENABLED: boolean`
+- `.env.example` — documents `ZOHO_ENABLED`, `ZOHO_CLIENT_ID/SECRET/REFRESH_TOKEN/ORGANIZATION_ID`, optional `ZOHO_API_DOMAIN` / `ZOHO_AUTH_DOMAIN`
+- `docs/adr/ADR-0007-zoho-connector.md` — India DC, token persist decision, field mapping, split-payment limitation
+
+#### Tests
+
+| File                                                       | What                                                                                                                                                                | Count                                                |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `connectors/__tests__/zoho-books.test.ts`                  | Unit: credential validation, field mapping, status translation, pagination, 429 backoff (fake timers), 401 refresh + retry, token persist to Supabase, typed errors | 31 tests                                             |
+| `connectors/__tests__/zoho-books-real.integration.test.ts` | Live: testConnection, fetchCustomers, fetchInvoices + overdue calc, fetchPayments, e2e (real Zoho data → calculator → LLM draft)                                    | 5 tests — **skipped until ZOHO_ORGANIZATION_ID set** |
+
+Unit suite: **31 passed, 0 failed**. Lint clean. Type-check clean.
+
+#### Live trial verification — COMPLETE (2026-06-20)
+
+All 5 live integration tests passed against real Indian Zoho Books trial (org `60074892345`, India DC):
+
+| Test                             | Result                                                                     |
+| -------------------------------- | -------------------------------------------------------------------------- |
+| `testConnection()`               | `ok: true` — India DC confirmed                                            |
+| `fetchCustomers()`               | 3 contacts fetched (Ramesh Traders, Kumar Distributors, Patel Wholesale)   |
+| `fetchInvoices()` + overdue calc | 4 invoices, 4 overdue, ₹1,95,000 outstanding                               |
+| `fetchPayments()`                | 0 records (correct — INV-000004 partial paid detected via `balance` field) |
+| e2e draft                        | INV-000001 (₹72,000, 38d) → LLM draft grounding-verified                   |
+
+**Two fixes applied during verification:**
+
+1. `testConnection()` changed from `/organizations` endpoint (needs `ZohoBooks.settings.READ`, returns 401 on minimal-scope tokens) to `/invoices?per_page=1` — documented in ADR-0007 §10.
+2. Live test e2e now queries for a real `businesses` row instead of using a hardcoded nil UUID (FK violation against `llm_usage_log`).
+
+**Full end-to-end loop PROVED** via `scripts/prove-e2e-loop.mts` (2026-06-20):
+
+- Zoho Books (India DC) → overdue calculator → LLM draft → WhatsApp `sendSessionMessage` → delivered to +91 97517 23512
+- Briefing text (sent live): 4 overdue invoices, ₹1,95,000 total, LLM draft for INV-000001 (Ramesh Traders, ₹72,000, 38 days overdue)
+- wamid: `wamid.HBgMOTE5NzUxNzIzNTEyFQIAERgSRURCREUyREIxMTE3QzgzMzc0AA==`
+
+**vitest config fixed (2026-06-20):**
+
+- Added `root: __dirname` + `include: ['src/**/*.{test,spec}.ts']` to `apps/api/vitest.config.ts` — prevents scanning system/iCloud paths when run from project root
+- Added `test:live-zoho` and `test:live-whatsapp` scripts to `apps/api/package.json`
+
+**Run live Zoho tests:**
+
+```bash
+npm run test:live-zoho -w apps/api
+```
+
+**Run full end-to-end loop proof:**
+
+```bash
+npx tsx scripts/prove-e2e-loop.mts
+```
+
+#### ⚠️ Phase 7 Go-Live Blockers (from this PR, in addition to WhatsApp blockers)
+
+1. A `connected_accounts` row with `provider='zoho_books'` and encrypted credentials must be created for the pilot business before the daily sync job can call the connector.
+2. Token refresh persistence requires `connectedAccountId` to be passed by the sync service — the sync service itself is not yet built (it will write Zoho data into our `invoices`/`customers` tables; currently the pipeline reads from those tables via seed data).
 
 ### Step 6 — "Publish to GitHub" strategy origin (RESOLVED 2026-06-19)
 
