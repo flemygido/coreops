@@ -6,7 +6,7 @@ Living progress tracker. Updated at the end of every phase. Read this alongside 
 
 ## Current Phase
 
-**Phase 6.5 — real connectors** | WhatsApp connector MERGED (`main`, commit `f8f9c8d`, PR #6). Zoho Books connector PR open (branch `feat/phase-6.5-zoho-connector`, awaiting review with live trial credentials).
+**Phase 6.5 — real connectors** | WhatsApp connector MERGED (`main`, commit `f8f9c8d`, PR #6). Zoho Books connector LIVE-VERIFIED (2026-06-20) — PR #7 open on branch `feat/phase-6.5-zoho-connector`, awaiting merge. Full end-to-end loop proven on real systems: Zoho Books (India DC) → overdue calculator → LLM draft → WhatsApp owner briefing delivered.
 
 Phase 6 previously complete: **MERGED** (`main`, commit `6e29586`, PR #5).
 Gap-close commit: `f7c7dee` (on `main`, 2026-06-18) — eval suite 5→22 cases with grounding assertions + CI eval job + DSO pilot metric.
@@ -239,13 +239,45 @@ Post-fix + `supabase db reset` (all 9 migrations clean including `whatsapp_windo
 
 Unit suite: **31 passed, 0 failed**. Lint clean. Type-check clean.
 
-#### ⚠️ Pending: live trial verification (owner action required)
+#### Live trial verification — COMPLETE (2026-06-20)
 
-1. Owner creates Indian Zoho Books trial at `books.zoho.in`, adds dummy overdue invoices (including a payment split across two invoices)
-2. Creates OAuth client in Zoho API Console → Server-based Apps → gets `client_id`, `client_secret`, `refresh_token`, `organization_id`
-3. Adds to `.env`; sets `ZOHO_ORGANIZATION_ID` (gates live tests) and `ZOHO_ENABLED=true`
-4. Runs: `npx vitest run --reporter=verbose apps/api/src/connectors/__tests__/zoho-books-real.integration.test.ts`
-5. Reports real-fetch output + draft text here for owner sign-off
+All 5 live integration tests passed against real Indian Zoho Books trial (org `60074892345`, India DC):
+
+| Test                             | Result                                                                     |
+| -------------------------------- | -------------------------------------------------------------------------- |
+| `testConnection()`               | `ok: true` — India DC confirmed                                            |
+| `fetchCustomers()`               | 3 contacts fetched (Ramesh Traders, Kumar Distributors, Patel Wholesale)   |
+| `fetchInvoices()` + overdue calc | 4 invoices, 4 overdue, ₹1,95,000 outstanding                               |
+| `fetchPayments()`                | 0 records (correct — INV-000004 partial paid detected via `balance` field) |
+| e2e draft                        | INV-000001 (₹72,000, 38d) → LLM draft grounding-verified                   |
+
+**Two fixes applied during verification:**
+
+1. `testConnection()` changed from `/organizations` endpoint (needs `ZohoBooks.settings.READ`, returns 401 on minimal-scope tokens) to `/invoices?per_page=1` — documented in ADR-0007 §10.
+2. Live test e2e now queries for a real `businesses` row instead of using a hardcoded nil UUID (FK violation against `llm_usage_log`).
+
+**Full end-to-end loop PROVED** via `scripts/prove-e2e-loop.mts` (2026-06-20):
+
+- Zoho Books (India DC) → overdue calculator → LLM draft → WhatsApp `sendSessionMessage` → delivered to +91 97517 23512
+- Briefing text (sent live): 4 overdue invoices, ₹1,95,000 total, LLM draft for INV-000001 (Ramesh Traders, ₹72,000, 38 days overdue)
+- wamid: `wamid.HBgMOTE5NzUxNzIzNTEyFQIAERgSRURCREUyREIxMTE3QzgzMzc0AA==`
+
+**vitest config fixed (2026-06-20):**
+
+- Added `root: __dirname` + `include: ['src/**/*.{test,spec}.ts']` to `apps/api/vitest.config.ts` — prevents scanning system/iCloud paths when run from project root
+- Added `test:live-zoho` and `test:live-whatsapp` scripts to `apps/api/package.json`
+
+**Run live Zoho tests:**
+
+```bash
+npm run test:live-zoho -w apps/api
+```
+
+**Run full end-to-end loop proof:**
+
+```bash
+npx tsx scripts/prove-e2e-loop.mts
+```
 
 #### ⚠️ Phase 7 Go-Live Blockers (from this PR, in addition to WhatsApp blockers)
 

@@ -193,6 +193,19 @@ describe.skipIf(!hasZoho)('ZohoBooksConnector — live Zoho Books trial', () => 
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
 
+    // Find an existing business row (created by scripts/create-owner.mts or seed).
+    // We need a real FK-valid business_id so llm_usage_log can insert successfully.
+    const { data: biz } = await supabase.from('businesses').select('id').limit(1).maybeSingle()
+    if (!biz) {
+      console.log(
+        '[Zoho live] e2e: skipping LLM draft — no business row in DB. ' +
+          'Run `npx tsx scripts/create-owner.mts` first to create one.'
+      )
+      return
+    }
+    const BUSINESS_ID = biz.id
+    console.log(`[Zoho live] e2e: using business_id ${BUSINESS_ID} for LLM usage log`)
+
     const keys = {
       anthropic: process.env.ANTHROPIC_API_KEY,
       openai: process.env.OPENAI_API_KEY,
@@ -216,9 +229,7 @@ describe.skipIf(!hasZoho)('ZohoBooksConnector — live Zoho Books trial', () => 
       age_bucket: worst.age_bucket,
     }
 
-    // Use a fixed businessId for the log (no real business needed — log still writes)
-    const TEST_BUSINESS_ID = '00000000-0000-0000-0000-000000000001'
-    const draftText = await draftFollowUp(llm, supabase, TEST_BUSINESS_ID, stateItem)
+    const draftText = await draftFollowUp(llm, supabase, BUSINESS_ID, stateItem)
 
     console.log('[Zoho live] e2e: drafted follow-up text:')
     console.log('---')

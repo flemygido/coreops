@@ -130,10 +130,14 @@ export class ZohoBooksConnector implements AccountingConnector {
       }
     }
     try {
-      // Fetch org list — lightweight, confirms token + org access in one call
-      const data = await this.get<{ organizations?: Array<{ name: string }> }>('organizations')
-      const orgName = data.organizations?.[0]?.name ?? this.credentials.organization_id
-      return { ok: true, message: `Connected to Zoho Books (${orgName})` }
+      // Fetch a single invoice as the health check — requires only ZohoBooks.invoices.READ.
+      // The /organizations endpoint needs ZohoBooks.settings.READ which unnecessarily
+      // narrows the required OAuth scope set and returns 401 on minimal-scope tokens.
+      await this.get<unknown>('invoices', { per_page: '1', page: '1' })
+      return {
+        ok: true,
+        message: `Connected to Zoho Books (org: ${this.credentials.organization_id})`,
+      }
     } catch (err) {
       return { ok: false, message: (err as Error).message }
     }

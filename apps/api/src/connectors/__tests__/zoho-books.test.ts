@@ -68,15 +68,14 @@ describe('ZohoBooksConnector', () => {
       expect(r.message).toMatch(/refresh_token/)
     })
 
-    it('returns ok: true when the organizations endpoint succeeds', async () => {
-      vi.stubGlobal(
-        'fetch',
-        mockOkFetch({ organizations: [{ name: 'Sharma Distributors Pvt Ltd' }] })
-      )
+    it('returns ok: true when the invoices health-check endpoint succeeds', async () => {
+      // testConnection() uses GET /invoices?per_page=1 (requires only ZohoBooks.invoices.READ).
+      // The /organizations endpoint needs ZohoBooks.settings.READ which minimal-scope tokens lack.
+      vi.stubGlobal('fetch', mockOkFetch(zohoList('invoices', [])))
       const c = makeConnector()
       const r = await c.testConnection()
       expect(r.ok).toBe(true)
-      expect(r.message).toMatch(/Sharma Distributors/)
+      expect(r.message).toMatch(/Connected to Zoho Books/)
     })
 
     it('returns ok: false when auth throws', async () => {

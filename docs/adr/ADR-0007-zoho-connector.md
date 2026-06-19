@@ -99,9 +99,35 @@ Both fail loudly — silent fallback would hide a misconfigured pilot account.
 
 ---
 
+### 10. `testConnection()` uses `/invoices?per_page=1` not `/organizations`
+
+The `/organizations` endpoint requires `ZohoBooks.settings.READ` scope, which minimal-scope OAuth tokens (invoices/contacts/payments READ only) do not have — it returns HTTP 401. The `/invoices?per_page=1` endpoint confirms token validity and org access using only `ZohoBooks.invoices.READ`, which every correctly-scoped token will have. This was discovered during live trial verification (2026-06-20).
+
+---
+
+## Live Verification (2026-06-20)
+
+All 5 live integration tests passed against a real Indian Zoho Books trial account:
+
+| Test                              | Result                                                                                                                                      |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `testConnection()`                | `ok: true, org: 60074892345`                                                                                                                |
+| `fetchCustomers()`                | 3 contacts (Ramesh Traders, Kumar Distributors, Patel Wholesale)                                                                            |
+| `fetchInvoices()` → overdue calc  | 4 invoices, 4 overdue, ₹1,95,000 outstanding                                                                                                |
+| `fetchPayments()`                 | 0 records (INV-000004's ₹40,000 partial correctly derived from `balance` field)                                                             |
+| e2e: real data → calc → LLM draft | INV-000001 (Ramesh Traders, ₹72,000, 38d) → "Ramesh Traders, this is a reminder that Invoice INV-000001 for INR 72,000 is 38 days overdue." |
+
+Full end-to-end loop also proven via `scripts/prove-e2e-loop.mts`:
+
+- Zoho Books (India DC) → overdue calculator → LLM draft → WhatsApp owner briefing delivered to +91 97517 23512
+- `wamid: wamid.HBgMOTE5NzUxNzIzNTEyFQIAERgSRURCREUyREIxMTE3QzgzMzc0AA==`
+
+---
+
 ## Consequences
 
 - The receivables pipeline can now sync real invoice and payment data from the pilot's Zoho Books account.
 - Token management is multi-tenant-safe: one DB write per refresh, not per request.
 - The split-payment limitation is documented and will require a `ConnectorPayment[]` shape change when it becomes a problem (return one `ConnectorPayment` per invoice in the nested list, not per payment).
 - Non-India accounts can use the same connector by overriding `api_domain` and `auth_domain` in credentials.
+- Live verification confirms that the `ZohoBooks.fullaccess.all` scope is NOT required — minimal READ scopes per resource are sufficient.

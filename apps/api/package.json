@@ -12,7 +12,9 @@
     "type-check": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:eval": "vitest run src/llm/__tests__/follow-up-draft.eval.test.ts"
+    "test:eval": "vitest run src/llm/__tests__/follow-up-draft.eval.test.ts",
+    "test:live-zoho": "vitest run --reporter=verbose src/connectors/__tests__/zoho-books-real.integration.test.ts",
+    "test:live-whatsapp": "vitest run --reporter=verbose src/connectors/__tests__/whatsapp-real.integration.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.2",
