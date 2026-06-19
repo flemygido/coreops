@@ -111,22 +111,23 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (app) => {
       )
     }
 
-    // Acknowledge immediately — Meta retries if we don't respond within 20s
-    void reply.status(200).send()
-
-    // Process entries after the response is dispatched
+    // Process entries first (all DB writes are fast < 100ms), then respond.
+    // Meta requires a 200 within 20s — this stays well under that budget and
+    // makes the handler fully synchronous so tests can assert DB state after inject.
     const body = req.body
-    if (!body?.entry) return
-
-    for (const entry of body.entry) {
-      for (const change of entry.changes ?? []) {
-        if (change.field !== 'messages') continue
-        const { metadata, messages } = change.value
-        for (const msg of messages ?? []) {
-          await recordServiceWindow(app, metadata.phone_number_id, msg.from, req)
+    if (body?.entry) {
+      for (const entry of body.entry) {
+        for (const change of entry.changes ?? []) {
+          if (change.field !== 'messages') continue
+          const { metadata, messages } = change.value
+          for (const msg of messages ?? []) {
+            await recordServiceWindow(app, metadata.phone_number_id, msg.from, req)
+          }
         }
       }
     }
+
+    return reply.status(200).send()
   })
 }
 

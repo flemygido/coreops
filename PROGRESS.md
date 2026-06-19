@@ -177,7 +177,26 @@ Deferred to Phase 6: rate limiting on `/v1/workflow/run`, 401→/login redirect 
 | `__tests__/whatsapp-webhook.integration.test.ts`         | Integration: GET challenge (3 cases), POST signature (3 cases), verifySignature unit (3 cases)                                                                  | 9 tests                                                                |
 | `connectors/__tests__/whatsapp-real.integration.test.ts` | Live API: testConnection, sendSessionMessage (CSW required), sendTemplateMessage (expects 132001 until approved)                                                | 3 tests — **skipped unless `WHATSAPP_PHONE_NUMBER_ID` is set in .env** |
 
-Full suite: **160 passed | 4 skipped** (3 real-API + 1 existing eval skip). Lint clean. Type-check clean.
+Full suite (initial build): **160 passed | 4 skipped** (3 real-API + 1 existing eval skip). Lint clean. Type-check clean.
+
+**Verification gap-close (2026-06-19):**
+
+Real-API tests run against live Meta Cloud API (`WHATSAPP_PHONE_NUMBER_ID` set):
+
+| Test                                       | Result                                                                           |
+| ------------------------------------------ | -------------------------------------------------------------------------------- |
+| `testConnection()`                         | `ok: true` — Cloud API reachable, phone number confirmed                         |
+| `sendSessionMessage()` → `+91 97517 23512` | **Delivered** — `wamid.HBgMOTE5NzUxNzIzNTEyFQIAERgSOTA3MDZGOTEyMEUxODY3NzRFAA==` |
+| `sendTemplateMessage()`                    | `WhatsAppNoTemplateError` thrown (expected — template not yet approved)          |
+
+Note: first real-API run returned error 190 (token expired — Meta tokens expire in 24h). Token refreshed in `.env`; subsequent run delivered.
+
+Webhook window-recording tests (full DB path: HTTP → signature check → lookup `connected_accounts` → decrypt → upsert `whatsapp_windows`):
+
+- "upserts a 24h window row when an inbound message arrives" — PASS
+- "refreshes (extends) the window on a second inbound message" — PASS
+
+Post-fix + `supabase db reset` (all 9 migrations clean including `whatsapp_windows`): **165 passed | 1 skipped | 0 failed** (22 test files + shared).
 
 #### To activate and test live sends
 
