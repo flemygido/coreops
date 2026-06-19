@@ -14,6 +14,7 @@ import { receivablesRoutes } from './routes/receivables.js'
 import { connectedAccountsRoutes } from './routes/connected-accounts.js'
 import { workflowRoutes } from './routes/workflow.js'
 import { dpdpRoutes } from './routes/dpdp.js'
+import { whatsappWebhookRoutes } from './routes/whatsapp-webhook.js'
 import type { Env } from './env.js'
 
 export async function createApp(env: Env) {
@@ -72,6 +73,8 @@ export async function createApp(env: Env) {
   await app.register(connectedAccountsRoutes, { prefix: '/v1' })
   await app.register(workflowRoutes, { prefix: '/v1' })
   await app.register(dpdpRoutes, { prefix: '/v1' })
+  // Webhook routes are at the root (no /v1 prefix) — Meta calls these directly
+  await app.register(whatsappWebhookRoutes)
 
   return app
 }

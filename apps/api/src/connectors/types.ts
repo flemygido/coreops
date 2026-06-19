@@ -60,9 +60,22 @@ export interface AccountingConnector {
 
 // ── Messaging connectors (WhatsApp, Gmail) ────────────────────────────────────
 
+// Structured variables for the pre-approved follow-up utility template.
+// Parameter order {{1}}–{{4}} must match the approved template exactly.
+export interface WhatsAppTemplateVars {
+  customer_name: string
+  invoice_number: string
+  amount: string // formatted, e.g. "₹50,000"
+  days_overdue: string // e.g. "5"
+}
+
 export interface MessagePayload {
   to: string
   body: string
+  // When provided and no 24h service window is open, the real WhatsApp connector
+  // routes through sendTemplateMessage() instead of failing. Without this, a
+  // no-window send throws WhatsAppNoWindowError to the caller.
+  template_vars?: WhatsAppTemplateVars
 }
 
 export interface SendMessageResult {

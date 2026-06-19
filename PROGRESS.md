@@ -6,7 +6,7 @@ Living progress tracker. Updated at the end of every phase. Read this alongside 
 
 ## Current Phase
 
-**Phase 6.5 — real connectors** | WhatsApp connector PR in progress (Step 1 verified 2026-06-19, Step 2 done, starting Step 3)
+**Phase 6.5 — real connectors** | WhatsApp connector PR open (branch `feat/phase-6.5-whatsapp-connector`, awaiting review)
 
 Phase 6 previously complete: **MERGED** (`main`, commit `6e29586`, PR #5).
 Gap-close commit: `f7c7dee` (on `main`, 2026-06-18) — eval suite 5→22 cases with grounding assertions + CI eval job + DSO pilot metric.
@@ -149,14 +149,48 @@ Deferred to Phase 6: rate limiting on `/v1/workflow/run`, 401→/login redirect 
 - [x] `apps/dashboard/app/(protected)/dashboard/page.tsx` — "DSO (days)" card (30-day rolling) and "Recovered" card (₹ via CoreOps) in primary metrics grid
 - [x] All 8 migrations apply cleanly; 85/85 unit tests pass
 
-### Step 5 — Phase 6.5 live integrations proposal (PENDING APPROVAL)
+### Step 5 — Phase 6.5 WhatsApp connector (PR #1, branch `feat/phase-6.5-whatsapp-connector`)
 
-See the full proposal in the session output above. Key decisions for the owner:
+**PR open 2026-06-19. STOP for approval.**
 
-1. Do you have a Meta WABA set up, or need account setup steps?
-2. Do you have a Zoho Books account to point at, or need setup steps?
-3. WhatsApp and Zoho in one PR or two?
-   **No code written until approved.**
+#### What was built
+
+- `supabase/migrations/20260619000001_whatsapp_windows.sql` — `whatsapp_windows` table (per-business, per-phone 24h expiry, RLS)
+- `apps/api/src/connectors/whatsapp.ts` — real `WhatsAppConnector` (v23.0 Cloud API)
+  - `sendSessionMessage()` — free-form text inside open 24h CSW
+  - `sendTemplateMessage()` — pre-approved utility template (no window required)
+  - `sendMessage()` — dispatches: window open → session; no window + template_vars → template; no window + no vars → `WhatsAppNoWindowError`; no template configured → `WhatsAppNoTemplateError` (LOUD)
+  - Retry on 130429/131056 (rate limits); typed throws for 131047/132001
+- `apps/api/src/routes/whatsapp-webhook.ts` — GET challenge + POST inbound handler
+  - HMAC-SHA256 (`X-Hub-Signature-256`) via `preParsing` hook (no new dependency)
+  - Records/refreshes 24h service window on every inbound message
+- `apps/api/src/connectors/registry.ts` — returns real connector when `WHATSAPP_ENABLED=true` + credentials have `access_token`
+- `apps/api/src/services/send-follow-up.ts` — now loads invoice (invoice_number, amount, due_date) to populate `template_vars` so the connector can route cold sends through the template
+- `apps/api/src/env.ts` + `.env.example` — `WHATSAPP_ENABLED` flag; `.env.example` documents template config vars
+- `docs/adr/ADR-0006-whatsapp-connector.md` — two-path design, window tracking, feature flag, preParsing approach, phone normalization
+
+#### Tests
+
+| File                                                     | What                                                                                                                                                            | Count                                                                  |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `connectors/__tests__/whatsapp-connector.test.ts`        | Unit: normalizePhone, testConnection, sendSessionMessage (retry), sendTemplateMessage (template JSON), sendMessage dispatch (all 4 paths), recordInboundMessage | 18 tests                                                               |
+| `__tests__/whatsapp-webhook.integration.test.ts`         | Integration: GET challenge (3 cases), POST signature (3 cases), verifySignature unit (3 cases)                                                                  | 9 tests                                                                |
+| `connectors/__tests__/whatsapp-real.integration.test.ts` | Live API: testConnection, sendSessionMessage (CSW required), sendTemplateMessage (expects 132001 until approved)                                                | 3 tests — **skipped unless `WHATSAPP_PHONE_NUMBER_ID` is set in .env** |
+
+Full suite: **160 passed | 4 skipped** (3 real-API + 1 existing eval skip). Lint clean. Type-check clean.
+
+#### To activate and test live sends
+
+1. Add `WHATSAPP_PHONE_NUMBER_ID=1092811770590161` to `.env` (see CLAUDE.md verified facts)
+2. Set `WHATSAPP_ENABLED=true` in `.env`
+3. Add phone_number_id and access_token to your `connected_accounts` credentials JSON
+4. Run `npm test -w apps/api` — the 3 real-API tests will now execute
+
+#### ⚠️ Phase 7 Go-Live Blockers (from this PR)
+
+1. **Template approval:** `invoice_follow_up` utility template must be approved in Meta Business Manager. Until then, all cold debtor follow-ups throw `WhatsAppNoTemplateError`. No workaround — this is by design.
+2. **Meta Business Portfolio restriction:** WABA is currently restricted (flagged in CLAUDE.md since 2026-06-19). Must be resolved before any message reaches a customer.
+3. **`WHATSAPP_TEMPLATE_NAME` in credentials:** must match the approved template name exactly.
 
 ### Step 6 — "Publish to GitHub" strategy origin (RESOLVED 2026-06-19)
 

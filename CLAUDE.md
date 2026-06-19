@@ -215,6 +215,7 @@ See [/docs/adr/](./docs/adr/) for all architectural decisions.
 - [ADR-0003](./docs/adr/ADR-0003-api-auth.md): API auth pattern — JWKS-verified Supabase JWT + per-request Supabase client (Phase 2, amended Phase 3)
 - [ADR-0004](./docs/adr/ADR-0004-connectors.md): Provider-abstracted connectors, Tally relay-agent finding, croner orchestration decision (Phase 3)
 - [ADR-0005](./docs/adr/ADR-0005-llm-layer.md): AI/agent layer — model choice, redact-before-call privacy boundary, guardrails, cost tracking (Phase 4)
+- [ADR-0006](./docs/adr/ADR-0006-whatsapp-connector.md): Real WhatsApp connector — two-path session/template design, window tracking, feature flag, preParsing signature verification (Phase 6.5)
 
 ---
 

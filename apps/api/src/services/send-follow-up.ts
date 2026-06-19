@@ -1,12 +1,16 @@
-// Sends one approved follow-up via the business's configured messaging connector
-// (WhatsApp mock in Phase 5). Updates status to 'sent' or 'failed' and
-// records the provider_message_id. The caller is responsible for confirming
-// the follow-up is in 'approved' status before calling this.
+// Sends one approved follow-up via the business's configured messaging connector.
+// Routes through the real WhatsApp connector (WHATSAPP_ENABLED=true) or the mock.
+// Loads invoice data to populate template_vars for the cold-outreach template path,
+// so the connector can send a pre-approved utility template when no service window is open.
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { decrypt } from '../lib/crypto.js'
 import { getMessagingConnector, isMessagingProvider } from '../connectors/index.js'
-import type { ConnectorCredentials, MessagingProvider } from '../connectors/index.js'
+import type {
+  ConnectorCredentials,
+  MessagingProvider,
+  WhatsAppTemplateVars,
+} from '../connectors/index.js'
 
 export interface SendFollowUpResult {
   ok: boolean
@@ -23,7 +27,15 @@ interface FollowUpRow {
 }
 
 interface CustomerRow {
+  name: string
   phone: string | null
+}
+
+interface InvoiceRow {
+  invoice_number: string
+  amount: number
+  amount_paid: number
+  due_date: string
 }
 
 interface ConnectedAccountRow {
@@ -53,10 +65,10 @@ export async function sendFollowUp(
     throw new Error(`Follow-up must be approved before sending (current status: ${fu.status})`)
   }
 
-  // Load the customer's phone number
+  // Load customer name + phone
   const { data: customer, error: custErr } = await supabase
     .from('customers')
-    .select('phone')
+    .select('name, phone')
     .eq('id', fu.customer_id)
     .eq('business_id', businessId)
     .maybeSingle()
@@ -65,6 +77,32 @@ export async function sendFollowUp(
   const cust = customer as CustomerRow | null
   if (!cust?.phone) {
     throw new Error(`Customer has no phone number — cannot send WhatsApp message`)
+  }
+
+  // Load invoice for template variable population
+  const { data: invoice, error: invErr } = await supabase
+    .from('invoices')
+    .select('invoice_number, amount, amount_paid, due_date')
+    .eq('id', fu.invoice_id)
+    .eq('business_id', businessId)
+    .maybeSingle()
+
+  if (invErr) throw new Error(invErr.message)
+
+  let templateVars: WhatsAppTemplateVars | undefined
+  if (invoice) {
+    const inv = invoice as InvoiceRow
+    const outstanding = Number(inv.amount) - Number(inv.amount_paid)
+    const daysOverdue = Math.max(
+      0,
+      Math.floor((Date.now() - new Date(inv.due_date).getTime()) / (1000 * 60 * 60 * 24))
+    )
+    templateVars = {
+      customer_name: cust.name,
+      invoice_number: inv.invoice_number,
+      amount: `₹${outstanding.toLocaleString('en-IN')}`,
+      days_overdue: String(daysOverdue),
+    }
   }
 
   // Find an active messaging connector for this business
@@ -87,14 +125,17 @@ export async function sendFollowUp(
     sendResult = await mock.sendMessage({ to: cust.phone, body: fu.drafted_text })
   } else {
     const account = accounts[0] as ConnectedAccountRow
-    // Cast to Provider first so the type guard can narrow to MessagingProvider
     const provider = account.provider as MessagingProvider
     if (!isMessagingProvider(provider)) {
       throw new Error(`Provider ${account.provider} is not a messaging provider`)
     }
     const credentials = JSON.parse(decrypt(account.credentials_encrypted)) as ConnectorCredentials
-    const connector = getMessagingConnector(provider, credentials)
-    sendResult = await connector.sendMessage({ to: cust.phone, body: fu.drafted_text })
+    const connector = getMessagingConnector(provider, credentials, { supabase, businessId })
+    sendResult = await connector.sendMessage({
+      to: cust.phone,
+      body: fu.drafted_text,
+      template_vars: templateVars,
+    })
   }
 
   // Update the follow-up status regardless of send outcome
