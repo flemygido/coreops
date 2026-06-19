@@ -68,6 +68,33 @@ jobs:
       - name: Run RLS integration tests
         run: npm test -w apps/api
 
+  eval:
+    name: LLM Eval Suite
+    runs-on: ubuntu-latest
+    # Runs only when the OPENAI_API_KEY secret is present so the job is a
+    # no-op on forks and on PRs from contributors without access.
+    if: ${{ secrets.OPENAI_API_KEY != '' }}
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      # Force the cheapest model: ~20 cases × ~$0.0001 = <$0.003 per CI run
+      LLM_RANKING_FOLLOW_UP_DRAFT: openai:gpt-5-nano
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build shared package
+        run: npm run build --workspace=packages/shared
+
+      - name: Run eval suite (real LLM, grounding assertions)
+        run: npm run test:eval -w apps/api
+
   secrets-scan:
     name: Secrets Scan
     runs-on: ubuntu-latest

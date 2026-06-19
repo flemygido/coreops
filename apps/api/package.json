@@ -11,7 +11,8 @@
     "build": "tsc -p tsconfig.build.json",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:eval": "vitest run src/llm/__tests__/follow-up-draft.eval.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.2",

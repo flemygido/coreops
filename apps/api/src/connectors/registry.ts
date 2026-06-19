@@ -2,11 +2,13 @@
 // importing a provider implementation directly — swapping a mock for a real
 // connector later is a one-line change here, nowhere else.
 
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { ZohoBooksMockConnector } from './mocks/zoho-books.mock.js'
 import { TallyMockConnector } from './mocks/tally.mock.js'
 import { GoogleSheetsMockConnector } from './mocks/google-sheets.mock.js'
 import { WhatsAppMockConnector } from './mocks/whatsapp.mock.js'
 import { GmailMockConnector } from './mocks/gmail.mock.js'
+import { WhatsAppConnector } from './whatsapp.js'
 import type {
   AccountingConnector,
   AccountingProvider,
@@ -39,13 +41,25 @@ export function getAccountingConnector(
   }
 }
 
+interface MessagingContext {
+  supabase?: SupabaseClient
+  businessId?: string
+}
+
 export function getMessagingConnector(
   provider: MessagingProvider,
-  credentials: ConnectorCredentials
+  credentials: ConnectorCredentials,
+  context?: MessagingContext
 ): MessagingConnector {
   switch (provider) {
-    case 'whatsapp':
+    case 'whatsapp': {
+      // Use the real connector when WHATSAPP_ENABLED=true and credentials have an access token.
+      // Falls back to the mock so dev/test flows keep working without live credentials.
+      if (process.env.WHATSAPP_ENABLED === 'true' && credentials.access_token) {
+        return new WhatsAppConnector(credentials, context?.supabase, context?.businessId)
+      }
       return new WhatsAppMockConnector(credentials)
+    }
     case 'gmail':
       return new GmailMockConnector(credentials)
   }

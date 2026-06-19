@@ -6,9 +6,10 @@ Living progress tracker. Updated at the end of every phase. Read this alongside 
 
 ## Current Phase
 
-**Phase 7 — Pilot deployment** | Status: **BLOCKED** (no confirmed paying customer — see RISK #1 in CLAUDE.md)
+**Phase 6.5 — real connectors** | WhatsApp connector PR open (branch `feat/phase-6.5-whatsapp-connector`, awaiting review)
 
 Phase 6 previously complete: **MERGED** (`main`, commit `6e29586`, PR #5).
+Gap-close commit: `f7c7dee` (on `main`, 2026-06-18) — eval suite 5→22 cases with grounding assertions + CI eval job + DSO pilot metric.
 Phase 5 previously complete: **MERGED** (`main`, commit `fa1fcff`, PR #4).
 Phase 4 previously complete: **MERGED** (`main`, commit `9f768c7`). Multi-provider LLM: **MERGED** (`main`, commit `10c6a02`, PR #3).
 
@@ -116,6 +117,103 @@ Full 6-persona review (`validation/VALIDATION_LOG.md`). Three BLOCKERs found and
 Post-fix: `npm test` 65+20 = 85 pass, 21 skipped, 0 type errors.
 
 Deferred to Phase 6: rate limiting on `/v1/workflow/run`, 401→/login redirect in client, LLM cost widget, DSO metric, guardrail case-sensitivity.
+
+---
+
+## Phase 6 Gap-Close Checklist (commit `f7c7dee`, 2026-06-18)
+
+### Step 1 — Stale DB (complete)
+
+- [x] `supabase db reset` applied all 7 Phase 0-6 migrations; 95/95 integration tests passed post-reset.
+
+### Step 2 — Model string verification (complete)
+
+- [x] All 5 configured model strings (claude-haiku-4-5-20251001, claude-sonnet-4-6, claude-opus-4-8, gpt-5-nano, gpt-5-mini) confirmed valid via real API calls. `max_tokens` vs `max_completion_tokens` discrepancy was in the verification script only — production client (`chat.completions.parse()`) does not set `max_tokens`, so this is not a production bug.
+
+### Step 3 — Eval suite in CI (complete)
+
+- [x] `apps/api/src/llm/__tests__/follow-up-draft.eval.test.ts` — expanded from 5 → 22 cases: all four age-bucket boundaries (1d/30d/31d/60d/61d/90d/121d/155d), very small (₹2,500) and very large (₹500,000) amounts, odd amount (₹12,347), partial payments, round numbers, customer name formats (dots, ampersand, Pvt Ltd, long names)
+- [x] `assertAmountGrounding()` — strips ₹ and commas, requires exact `amount_outstanding` digit string to appear in every draft; any hallucinated or missing figure fails the test
+- [x] `.github/workflows/ci.yml` — new `eval` job: runs `LLM_RANKING_FOLLOW_UP_DRAFT=openai:gpt-5-nano` via `OPENAI_API_KEY` secret; skips on forks where secret is absent; ~$0.003/run budget
+- [x] `apps/api/package.json` — added `test:eval` script
+
+### Step 4 — DSO pilot metric (complete)
+
+- [x] `supabase/migrations/20260618000001_dso_snapshots.sql` — `dso_snapshots` table, RLS (tenant read-only), service_role grants, sequence grant
+- [x] `packages/shared/src/dso.ts` — `calcDsoDays()` and `calcRupeesRecovered()` as pure deterministic arithmetic (no LLM — Hard Rule #6); accessible to both API and dashboard workspaces
+- [x] `packages/shared/src/index.ts` — re-exports `dso.ts`
+- [x] `apps/api/src/services/dso.ts` — `calculateDso()` (AR, credit_sales_30d, follow-ups, recovery) + `recordDsoSnapshot()` (upsert, idempotent)
+- [x] `apps/api/src/jobs/dso.ts` — croner weekly snapshot job (Sunday 03:00 UTC, 1h after retention job)
+- [x] `apps/api/src/server.ts` — `startDsoJob()` wired in
+- [x] `apps/api/src/__tests__/dso.test.ts` — 15 unit tests for `calcDsoDays` (8) and `calcRupeesRecovered` (7); all passing
+- [x] `apps/dashboard/app/(protected)/dashboard/page.tsx` — "DSO (days)" card (30-day rolling) and "Recovered" card (₹ via CoreOps) in primary metrics grid
+- [x] All 8 migrations apply cleanly; 85/85 unit tests pass
+
+### Step 5 — Phase 6.5 WhatsApp connector (PR #1, branch `feat/phase-6.5-whatsapp-connector`)
+
+**PR open 2026-06-19. STOP for approval.**
+
+#### What was built
+
+- `supabase/migrations/20260619000001_whatsapp_windows.sql` — `whatsapp_windows` table (per-business, per-phone 24h expiry, RLS)
+- `apps/api/src/connectors/whatsapp.ts` — real `WhatsAppConnector` (v23.0 Cloud API)
+  - `sendSessionMessage()` — free-form text inside open 24h CSW
+  - `sendTemplateMessage()` — pre-approved utility template (no window required)
+  - `sendMessage()` — dispatches: window open → session; no window + template_vars → template; no window + no vars → `WhatsAppNoWindowError`; no template configured → `WhatsAppNoTemplateError` (LOUD)
+  - Retry on 130429/131056 (rate limits); typed throws for 131047/132001
+- `apps/api/src/routes/whatsapp-webhook.ts` — GET challenge + POST inbound handler
+  - HMAC-SHA256 (`X-Hub-Signature-256`) via `preParsing` hook (no new dependency)
+  - Records/refreshes 24h service window on every inbound message
+- `apps/api/src/connectors/registry.ts` — returns real connector when `WHATSAPP_ENABLED=true` + credentials have `access_token`
+- `apps/api/src/services/send-follow-up.ts` — now loads invoice (invoice_number, amount, due_date) to populate `template_vars` so the connector can route cold sends through the template
+- `apps/api/src/env.ts` + `.env.example` — `WHATSAPP_ENABLED` flag; `.env.example` documents template config vars
+- `docs/adr/ADR-0006-whatsapp-connector.md` — two-path design, window tracking, feature flag, preParsing approach, phone normalization
+
+#### Tests
+
+| File                                                     | What                                                                                                                                                            | Count                                                                  |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `connectors/__tests__/whatsapp-connector.test.ts`        | Unit: normalizePhone, testConnection, sendSessionMessage (retry), sendTemplateMessage (template JSON), sendMessage dispatch (all 4 paths), recordInboundMessage | 18 tests                                                               |
+| `__tests__/whatsapp-webhook.integration.test.ts`         | Integration: GET challenge (3 cases), POST signature (3 cases), verifySignature unit (3 cases)                                                                  | 9 tests                                                                |
+| `connectors/__tests__/whatsapp-real.integration.test.ts` | Live API: testConnection, sendSessionMessage (CSW required), sendTemplateMessage (expects 132001 until approved)                                                | 3 tests — **skipped unless `WHATSAPP_PHONE_NUMBER_ID` is set in .env** |
+
+Full suite (initial build): **160 passed | 4 skipped** (3 real-API + 1 existing eval skip). Lint clean. Type-check clean.
+
+**Verification gap-close (2026-06-19):**
+
+Real-API tests run against live Meta Cloud API (`WHATSAPP_PHONE_NUMBER_ID` set):
+
+| Test                                       | Result                                                                           |
+| ------------------------------------------ | -------------------------------------------------------------------------------- |
+| `testConnection()`                         | `ok: true` — Cloud API reachable, phone number confirmed                         |
+| `sendSessionMessage()` → `+91 97517 23512` | **Delivered** — `wamid.HBgMOTE5NzUxNzIzNTEyFQIAERgSOTA3MDZGOTEyMEUxODY3NzRFAA==` |
+| `sendTemplateMessage()`                    | `WhatsAppNoTemplateError` thrown (expected — template not yet approved)          |
+
+Note: first real-API run returned error 190 (token expired — Meta tokens expire in 24h). Token refreshed in `.env`; subsequent run delivered.
+
+Webhook window-recording tests (full DB path: HTTP → signature check → lookup `connected_accounts` → decrypt → upsert `whatsapp_windows`):
+
+- "upserts a 24h window row when an inbound message arrives" — PASS
+- "refreshes (extends) the window on a second inbound message" — PASS
+
+Post-fix + `supabase db reset` (all 9 migrations clean including `whatsapp_windows`): **165 passed | 1 skipped | 0 failed** (22 test files + shared).
+
+#### To activate and test live sends
+
+1. Add `WHATSAPP_PHONE_NUMBER_ID=1092811770590161` to `.env` (see CLAUDE.md verified facts)
+2. Set `WHATSAPP_ENABLED=true` in `.env`
+3. Add phone_number_id and access_token to your `connected_accounts` credentials JSON
+4. Run `npm test -w apps/api` — the 3 real-API tests will now execute
+
+#### ⚠️ Phase 7 Go-Live Blockers (from this PR)
+
+1. **Template approval:** `invoice_follow_up` utility template must be approved in Meta Business Manager. Until then, all cold debtor follow-ups throw `WhatsAppNoTemplateError`. No workaround — this is by design.
+2. **Meta Business Portfolio restriction:** WABA is currently restricted (flagged in CLAUDE.md since 2026-06-19). Must be resolved before any message reaches a customer.
+3. **`WHATSAPP_TEMPLATE_NAME` in credentials:** must match the approved template name exactly.
+
+### Step 6 — "Publish to GitHub" strategy origin (RESOLVED 2026-06-19)
+
+Owner confirmed: customer acquisition is via **direct outreach** to real Indian wholesalers/distributors. Repo is **PRIVATE**. The "publish to GitHub to attract customers" line was incorrect (Phase 0 inference, not owner instruction). Removed from CLAUDE.md. No code changes required.
 
 ---
 
@@ -346,7 +444,7 @@ Deferred to Phase 6: rate limiting on `/v1/workflow/run`, 401→/login redirect 
 
 | #   | Question / Blocker                                                                                                                                                                                                                                                                                                                                                                        | Priority | Status                                                                                                                                                                                                          |
 | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | **RISK #1:** No confirmed paying customer — strategy is "publish to attract"                                                                                                                                                                                                                                                                                                              | High     | Open — blocks Phase 7 only                                                                                                                                                                                      |
+| 1   | **RISK #1:** No confirmed paying customer — strategy is direct outreach to real Indian wholesalers/distributors. Repo is PRIVATE (confirmed 2026-06-19; the earlier "publish to GitHub to attract customers" note was incorrect and has been removed from CLAUDE.md).                                                                                                                     | High     | Open — blocks Phase 7 only                                                                                                                                                                                      |
 | 2   | Does the pilot use Zoho Books or Tally?                                                                                                                                                                                                                                                                                                                                                   | High     | **Resolved 2026-06-16 — Zoho Books.** Tally relay-agent work (ADR-0004) is deprioritized; only build it if a Tally-only customer later requires it.                                                             |
 | 3   | RLS integration test needs SUPABASE_URL in CI secrets (Phase 7 work)                                                                                                                                                                                                                                                                                                                      | Medium   | Noted — CI job will skip until secrets added                                                                                                                                                                    |
 | 4   | LLM eval suite (`follow-up-draft.eval.test.ts`) has never run against any real LLM API — no `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` configured in this environment. As of 2026-06-17 it resolves via `LLM_RANKING_FOLLOW_UP_DRAFT` like production code will, so the first real run also verifies OpenAI's `zodResponseFormat` structured output works for this use, not just Anthropic's | High     | **Resolved 2026-06-17** — ran against `openai:gpt-5-nano` (cost-ranked first configured provider); all 5 eval cases passed (3 golden-set drafts + 1 end-to-end draftFollowUp); guardrails passed on real output |

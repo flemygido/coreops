@@ -38,9 +38,8 @@ Reduction in **Days Sales Outstanding (DSO)** OR **rupees of overdue receivables
 ### 4. Validation Status
 
 > ⚠️ **RISK #1: As of Phase 0 (2026-06-15), there is NO confirmed paying customer.**
-> **Strategy chosen by owner:** Publish the project openly on GitHub to attract early customers, rather than waiting for a named pilot before building.
-> This changes the risk posture: we are building in public, so code quality, documentation, and security hygiene are customer-facing from Phase 0.
-> Phase 7 (pilot deployment) still requires a named customer with DPDP consent before any real data is processed.
+> **Strategy (confirmed 2026-06-19):** Direct outreach to real Indian wholesalers and distributors. The repo is **PRIVATE**. Customer acquisition is NOT via public GitHub.
+> Phase 7 (pilot deployment) requires a named customer with DPDP consent before any real data is processed.
 > When a pilot is confirmed, record here: **Pilot customer name:** **\*\*\*\***\_**\*\*\*\*** **Pain confirmed:** **\*\*\*\***\_**\*\*\*\*** **Date:** **\*\*\*\***\_**\*\*\*\***
 
 ### 5. Non-Goals for v1 (explicitly NOT building)
@@ -79,6 +78,44 @@ As of **1 July 2025**, billing is **per-message by template category** (not per 
 - Service replies inside 24-hour customer service window: **FREE**
 - **Rule:** All routine owner briefings MUST ride free utility/service windows. NEVER depend on paid marketing templates for operational messages.
 
+### WhatsApp Cloud API — Verified Facts (2026-06-19)
+
+Manually tested end-to-end against Meta's test number. These are confirmed constraints, not assumptions — build around them exactly.
+
+**What works:**
+
+- The Cloud API path is confirmed: an API call to `POST /{phone-number-id}/messages` delivers to a real phone.
+- The 24-hour Customer Service Window (CSW) behaves as documented: once the recipient messages the business number, free-form messages flow within that window.
+
+**Hard constraint confirmed:**
+
+- A business **CANNOT** send free-form text to a recipient with no open service window. Cold outbound = **pre-approved TEMPLATE messages only**. No exceptions.
+
+**Two distinct message paths — must be built separately in code:**
+
+| Path               | Target                           | Window required?              | Message type                                          | Cost                                |
+| ------------------ | -------------------------------- | ----------------------------- | ----------------------------------------------------- | ----------------------------------- |
+| BRIEFING → owner   | Owner's personal number          | Owner opens CSW once at setup | Free-form (`sendSessionMessage`)                      | Free                                |
+| FOLLOW-UP → debtor | Customer who has NOT messaged us | No open window (cold)         | Pre-approved utility template (`sendTemplateMessage`) | ~₹0.10–0.15/msg OR free if CSW open |
+
+**Template registration dependency:**
+
+- Template creation + Meta review is a multi-day process (typically 1–3 business days for utility templates).
+- Required variables for the follow-up template: `customer_name`, `invoice_number`, `amount`, `days_overdue`.
+- Treat template approval as a **first-class go-live dependency**, not an afterthought. A production WABA without an approved template cannot send follow-ups.
+
+**Verified test assets (safe for local/dev use — read from env, never commit):**
+
+- Test sender number: `+1 555 670 2281`
+- Phone Number ID: `1092811770590161` (env: `WHATSAPP_PHONE_NUMBER_ID`)
+- WABA ID: `2426539331145599` (env: `WHATSAPP_WABA_ID`)
+- Test recipient (owner's number): `+91 97517 23512`
+- Access token: in `.env` as `WHATSAPP_ACCESS_TOKEN` — never print, never commit
+
+**Known go-live risk:**
+
+- The test WABA's Meta Business Portfolio is currently **restricted** (business-profile / website compliance incomplete). Test sends work, but full production go-live requires a clean, verified Meta Business Portfolio. Record as a Phase 7 blocker.
+
 ---
 
 ## Phase Map
@@ -90,8 +127,8 @@ As of **1 July 2025**, billing is **per-message by template category** (not per 
 | 2     | COMPLETE    | Core backend APIs + auth for the receivables workflow      |
 | 3     | COMPLETE    | Provider-abstracted integration connectors (mocks first)   |
 | 4     | COMPLETE    | AI/agent layer with evals, guardrails, cost tracking       |
-| 5     | Pending     | End-to-end receivables recovery workflow, owner-in-loop    |
-| 6     | Pending     | Observability, cost controls, security + DPDP hardening    |
+| 5     | COMPLETE    | End-to-end receivables recovery workflow, owner-in-loop    |
+| 6     | COMPLETE    | Observability, cost controls, security + DPDP hardening    |
 | 7     | **BLOCKED** | Pilot deployment — blocked until RISK #1 resolved          |
 
 ---
@@ -178,6 +215,7 @@ See [/docs/adr/](./docs/adr/) for all architectural decisions.
 - [ADR-0003](./docs/adr/ADR-0003-api-auth.md): API auth pattern — JWKS-verified Supabase JWT + per-request Supabase client (Phase 2, amended Phase 3)
 - [ADR-0004](./docs/adr/ADR-0004-connectors.md): Provider-abstracted connectors, Tally relay-agent finding, croner orchestration decision (Phase 3)
 - [ADR-0005](./docs/adr/ADR-0005-llm-layer.md): AI/agent layer — model choice, redact-before-call privacy boundary, guardrails, cost tracking (Phase 4)
+- [ADR-0006](./docs/adr/ADR-0006-whatsapp-connector.md): Real WhatsApp connector — two-path session/template design, window tracking, feature flag, preParsing signature verification (Phase 6.5)
 
 ---
 
