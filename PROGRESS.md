@@ -6,7 +6,7 @@ Living progress tracker. Updated at the end of every phase. Read this alongside 
 
 ## Current Phase
 
-**Phase 6 gap-close (steps 3 + 4 merged 2026-06-18)** | next: owner approval of Phase 6.5 live-integrations proposal (step 5 below)
+**Phase 6.5 — real connectors** | WhatsApp connector PR in progress (Step 1 verified 2026-06-19, Step 2 done, starting Step 3)
 
 Phase 6 previously complete: **MERGED** (`main`, commit `6e29586`, PR #5).
 Gap-close commit: `f7c7dee` (on `main`, 2026-06-18) — eval suite 5→22 cases with grounding assertions + CI eval job + DSO pilot metric.
@@ -158,9 +158,9 @@ See the full proposal in the session output above. Key decisions for the owner:
 3. WhatsApp and Zoho in one PR or two?
    **No code written until approved.**
 
-### Step 6 — "Publish to GitHub" strategy origin (flagged)
+### Step 6 — "Publish to GitHub" strategy origin (RESOLVED 2026-06-19)
 
-CLAUDE.md says "Strategy chosen by owner" for publishing the repo publicly to attract customers. Flagged because the origin (explicit owner instruction vs. Phase 0 inference) could not be verified from history. See session output for detail. No action taken — owner must confirm or correct.
+Owner confirmed: customer acquisition is via **direct outreach** to real Indian wholesalers/distributors. Repo is **PRIVATE**. The "publish to GitHub to attract customers" line was incorrect (Phase 0 inference, not owner instruction). Removed from CLAUDE.md. No code changes required.
 
 ---
 
@@ -391,7 +391,7 @@ CLAUDE.md says "Strategy chosen by owner" for publishing the repo publicly to at
 
 | #   | Question / Blocker                                                                                                                                                                                                                                                                                                                                                                        | Priority | Status                                                                                                                                                                                                          |
 | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | **RISK #1:** No confirmed paying customer — strategy is "publish to attract"                                                                                                                                                                                                                                                                                                              | High     | Open — blocks Phase 7 only                                                                                                                                                                                      |
+| 1   | **RISK #1:** No confirmed paying customer — strategy is direct outreach to real Indian wholesalers/distributors. Repo is PRIVATE (confirmed 2026-06-19; the earlier "publish to GitHub to attract customers" note was incorrect and has been removed from CLAUDE.md).                                                                                                                     | High     | Open — blocks Phase 7 only                                                                                                                                                                                      |
 | 2   | Does the pilot use Zoho Books or Tally?                                                                                                                                                                                                                                                                                                                                                   | High     | **Resolved 2026-06-16 — Zoho Books.** Tally relay-agent work (ADR-0004) is deprioritized; only build it if a Tally-only customer later requires it.                                                             |
 | 3   | RLS integration test needs SUPABASE_URL in CI secrets (Phase 7 work)                                                                                                                                                                                                                                                                                                                      | Medium   | Noted — CI job will skip until secrets added                                                                                                                                                                    |
 | 4   | LLM eval suite (`follow-up-draft.eval.test.ts`) has never run against any real LLM API — no `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` configured in this environment. As of 2026-06-17 it resolves via `LLM_RANKING_FOLLOW_UP_DRAFT` like production code will, so the first real run also verifies OpenAI's `zodResponseFormat` structured output works for this use, not just Anthropic's | High     | **Resolved 2026-06-17** — ran against `openai:gpt-5-nano` (cost-ranked first configured provider); all 5 eval cases passed (3 golden-set drafts + 1 end-to-end draftFollowUp); guardrails passed on real output |
