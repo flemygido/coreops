@@ -13,6 +13,7 @@ import { createClient } from '@supabase/supabase-js'
 import { parseModelRanking } from '../llm/model-ranking.js'
 import { getLlmClientForRanking } from '../llm/registry.js'
 import { draftFollowUps } from '../services/draft-follow-ups.js'
+import { syncBusiness } from '../services/sync.js'
 
 export function startDailyWorkflow(app: FastifyInstance): Cron {
   const { env } = app
@@ -34,6 +35,14 @@ export function startDailyWorkflow(app: FastifyInstance): Cron {
       if (error) throw new Error(`Failed to list businesses: ${error.message}`)
 
       for (const biz of businesses ?? []) {
+        // Sync live accounting data into Postgres before drafting.
+        // Returns 'skipped' if no accounting connector is configured (safe no-op).
+        const syncResult = await syncBusiness(admin, biz.id as string)
+        app.log.info(
+          { job: 'daily-workflow', businessId: biz.id, sync: syncResult },
+          'Sync complete'
+        )
+
         // Use a per-business anon client scoped via RLS isn't possible server-side
         // without a user token. Use admin client for reads, which is safe because
         // this job only runs server-side with no user context.

@@ -6,7 +6,9 @@ Living progress tracker. Updated at the end of every phase. Read this alongside 
 
 ## Current Phase
 
-**Phase 6.5 — real connectors** | WhatsApp connector MERGED (`main`, commit `f8f9c8d`, PR #6). Zoho Books connector LIVE-VERIFIED (2026-06-20) — PR #7 open on branch `feat/phase-6.5-zoho-connector`, awaiting merge. Full end-to-end loop proven on real systems: Zoho Books (India DC) → overdue calculator → LLM draft → WhatsApp owner briefing delivered.
+**Phase 6.6 — Sync Service** | Branch `feat/phase-6.6-sync-service` — open PR awaiting merge. SyncService pulls live accounting data from Zoho into Postgres before every workflow execution. See ADR-0008.
+
+Phase 6.5 previously complete: WhatsApp connector MERGED (`main`, commit `f8f9c8d`, PR #6). Zoho Books connector — PR #7 merged (2026-06-20). Full e2e loop proven: Zoho → calculator → LLM → WhatsApp delivery `wamid.HBgMOTE5NzUxNzIzNTEyFQIAERgSRURCREUyREIxMTE3QzgzMzc0AA==`.
 
 Phase 6 previously complete: **MERGED** (`main`, commit `6e29586`, PR #5).
 Gap-close commit: `f7c7dee` (on `main`, 2026-06-18) — eval suite 5→22 cases with grounding assertions + CI eval job + DSO pilot metric.
@@ -283,6 +285,65 @@ npx tsx scripts/prove-e2e-loop.mts
 
 1. A `connected_accounts` row with `provider='zoho_books'` and encrypted credentials must be created for the pilot business before the daily sync job can call the connector.
 2. Token refresh persistence requires `connectedAccountId` to be passed by the sync service — the sync service itself is not yet built (it will write Zoho data into our `invoices`/`customers` tables; currently the pipeline reads from those tables via seed data).
+
+### Step 8 — Phase 6.6 Sync Service (branch `feat/phase-6.6-sync-service`)
+
+**Built 2026-06-20. STOP for approval + live sync proof before merge.**
+
+#### What was built
+
+- `supabase/migrations/20260620000001_sync.sql`
+  - UNIQUE constraints on `(business_id, external_id)` for `customers`, `invoices`, `payments` — enables idempotent ON CONFLICT upsert; existing NULL `external_id` seed rows unaffected (Postgres allows multiple NULLs in UNIQUE)
+  - `sync_runs` table: append-only audit log per sync attempt (provider, counts, status, error_detail); RLS allows tenants to read their own history; `service_role` may insert/update
+
+- `apps/api/src/services/sync.ts` — `syncBusiness(adminSupabase, businessId): Promise<SyncResult>`
+  - Loads active accounting `connected_accounts` row; returns `status: 'skipped'` if none
+  - Decrypts credentials; calls `getAccountingConnector(provider, credentials, { supabase, connectedAccountId })` (token refresh persists to DB)
+  - Phase cascade: customers → invoices (FK-resolved via external_id map) → payments; customers fail = `'failed'`; invoices/payments fail after customers = `'partial'`
+  - Writes `sync_runs` at open (status: 'running'), updates at close with counts + errors
+  - KNOWN LIMITATION (ADR-0008): source-side hard-deletes are not reflected; stale records remain in DB
+
+- `apps/api/src/services/__tests__/sync.test.ts` — 11 unit tests (all passing)
+  - No connected account → skipped; full success counts; customers-fail → failed; invoices-fail → partial; payments-fail → partial; tenant isolation; sync_run created + finalised
+
+- `apps/api/src/services/__tests__/sync-real.integration.test.ts` — 5 live tests (gated on ZOHO_ORGANIZATION_ID + connected_account in DB)
+  - Gracefully skip if no connected_account (no throw; uses ctx.skip() per test)
+  - Proves: first sync success, ≥1 customer + invoice in DB, getReceivablesState returns overdue > 0, idempotency (re-run unchanged counts), sync_run rows with status:success
+
+- `apps/api/src/jobs/daily-workflow.ts` — `syncBusiness(admin, biz.id)` called before `draftFollowUps()` for each business
+- `apps/api/src/routes/workflow.ts` — `syncBusiness(adminSupabase, req.businessId)` called before `draftFollowUps()` in `POST /v1/workflow/run`
+- `apps/api/package.json` — added `"test:live-sync"` script
+
+- `scripts/setup-pilot.mts` — flag-based DPDP-first onboarding:
+  - `--email`, `--business-name`, `--env-file <per-pilot-path>`, `--consent-confirmed` (required boolean)
+  - Refuses to proceed without `--consent-confirmed`
+  - Writes `consent_records` row (DPDP-2025-v1, purpose: receivables_recovery_workflow) BEFORE any credentials
+  - Upserts encrypted `zoho_books` + `whatsapp` connected_account rows (if env vars present)
+
+- `docs/adr/ADR-0008-sync-service.md` — source-agnostic design, UNIQUE constraints, stale-record limitation, DPDP-first onboarding, sync_runs audit, no /v1/sync route rationale
+
+#### Type-check status
+
+One pre-existing TS error in `zoho-books.test.ts:305` (present before this branch). No new TS errors from Phase 6.6 code.
+
+#### Tests to run for approval
+
+```bash
+# Unit tests (all workspaces)
+npm test
+
+# Live sync integration (requires supabase running + setup-pilot run first)
+node --import tsx/esm scripts/setup-pilot.mts \
+  --email owner@coreops.local \
+  --business-name "Ramesh Traders" \
+  --consent-confirmed
+npm run test:live-sync -w apps/api
+
+# Confirm receivables/state uses live Zoho data
+curl -s -H "Authorization: Bearer <owner-jwt>" http://localhost:3000/v1/receivables/state | jq .
+```
+
+---
 
 ### Step 6 — "Publish to GitHub" strategy origin (RESOLVED 2026-06-19)
 

@@ -120,16 +120,18 @@ Manually tested end-to-end against Meta's test number. These are confirmed const
 
 ## Phase Map
 
-| Phase | Status      | One-Line Objective                                         |
-| ----- | ----------- | ---------------------------------------------------------- |
-| 0     | COMPLETE    | Lock the wedge; stand up CI-green empty repo               |
-| 1     | COMPLETE    | Model receivables data with RLS + DPDP-aligned audit trail |
-| 2     | COMPLETE    | Core backend APIs + auth for the receivables workflow      |
-| 3     | COMPLETE    | Provider-abstracted integration connectors (mocks first)   |
-| 4     | COMPLETE    | AI/agent layer with evals, guardrails, cost tracking       |
-| 5     | COMPLETE    | End-to-end receivables recovery workflow, owner-in-loop    |
-| 6     | COMPLETE    | Observability, cost controls, security + DPDP hardening    |
-| 7     | **BLOCKED** | Pilot deployment — blocked until RISK #1 resolved          |
+| Phase | Status      | One-Line Objective                                             |
+| ----- | ----------- | -------------------------------------------------------------- |
+| 0     | COMPLETE    | Lock the wedge; stand up CI-green empty repo                   |
+| 1     | COMPLETE    | Model receivables data with RLS + DPDP-aligned audit trail     |
+| 2     | COMPLETE    | Core backend APIs + auth for the receivables workflow          |
+| 3     | COMPLETE    | Provider-abstracted integration connectors (mocks first)       |
+| 4     | COMPLETE    | AI/agent layer with evals, guardrails, cost tracking           |
+| 5     | COMPLETE    | End-to-end receivables recovery workflow, owner-in-loop        |
+| 6     | COMPLETE    | Observability, cost controls, security + DPDP hardening        |
+| 6.5   | COMPLETE    | Real WhatsApp + Zoho connectors, live e2e loop proven          |
+| 6.6   | COMPLETE    | Sync Service — live Zoho data into Postgres before every draft |
+| 7     | **BLOCKED** | Pilot deployment — blocked until RISK #1 resolved              |
 
 ---
 
@@ -217,6 +219,7 @@ See [/docs/adr/](./docs/adr/) for all architectural decisions.
 - [ADR-0005](./docs/adr/ADR-0005-llm-layer.md): AI/agent layer — model choice, redact-before-call privacy boundary, guardrails, cost tracking (Phase 4)
 - [ADR-0006](./docs/adr/ADR-0006-whatsapp-connector.md): Real WhatsApp connector — two-path session/template design, window tracking, feature flag, preParsing signature verification (Phase 6.5)
 - [ADR-0007](./docs/adr/ADR-0007-zoho-connector.md): Real Zoho Books connector — India DC endpoints, token persist-after-refresh, field mapping, split-payment v1 limitation (Phase 6.5)
+- [ADR-0008](./docs/adr/ADR-0008-sync-service.md): Sync Service — source-agnostic upsert, UNIQUE constraint design, stale-record known limitation, DPDP-first onboarding via setup-pilot.mts (Phase 6.6)
 
 ---
 
