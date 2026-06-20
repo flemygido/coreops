@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import { parseModelRanking } from '../llm/model-ranking.js'
 import { getLlmClientForRanking } from '../llm/registry.js'
 import { draftFollowUps } from '../services/draft-follow-ups.js'
+import { syncBusiness } from '../services/sync.js'
 import { sendFollowUp } from '../services/send-follow-up.js'
 import { NotFoundError, ValidationError } from '../plugins/errors.js'
 
@@ -51,6 +52,9 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
 
       // Use admin client for cost logging (llm_usage_log requires service-role write)
       const adminSupabase = createClient(app.env.SUPABASE_URL, app.env.SUPABASE_SERVICE_ROLE_KEY)
+
+      // Sync live accounting data before drafting so follow-ups reflect current invoices.
+      await syncBusiness(adminSupabase, req.businessId)
 
       const result = await draftFollowUps(
         req.supabase,

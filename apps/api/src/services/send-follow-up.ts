@@ -1,5 +1,5 @@
 // Sends one approved follow-up via the business's configured messaging connector.
-// Routes through the real WhatsApp connector (WHATSAPP_ENABLED=true) or the mock.
+// Routes through the real WhatsApp connector (when access_token is in credentials) or the mock.
 // Loads invoice data to populate template_vars for the cold-outreach template path,
 // so the connector can send a pre-approved utility template when no service window is open.
 

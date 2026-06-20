@@ -22,9 +22,6 @@ interface Env {
   LLM_DAILY_BUDGET_USD: number
   // Days to keep terminal follow-ups (sent/skipped/failed) before retention purge.
   RETENTION_DAYS: number
-  // Feature flag: when true, routes WhatsApp sends through the real Cloud API connector.
-  // Requires WHATSAPP_ACCESS_TOKEN and WHATSAPP_PHONE_NUMBER_ID in connected_accounts credentials.
-  WHATSAPP_ENABLED: boolean
 }
 
 function required(name: string): string {
@@ -54,7 +51,6 @@ export function loadEnv(): Env {
     DASHBOARD_ORIGIN: process.env.DASHBOARD_ORIGIN ?? 'http://localhost:3001',
     LLM_DAILY_BUDGET_USD: parseFloat(process.env.LLM_DAILY_BUDGET_USD ?? '1.00'),
     RETENTION_DAYS: parseInt(process.env.RETENTION_DAYS ?? '365', 10),
-    WHATSAPP_ENABLED: process.env.WHATSAPP_ENABLED === 'true',
   }
 }
 

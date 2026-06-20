@@ -4,6 +4,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { ZohoBooksMockConnector } from './mocks/zoho-books.mock.js'
+import { ZohoBooksConnector } from './zoho-books.js'
 import { TallyMockConnector } from './mocks/tally.mock.js'
 import { GoogleSheetsMockConnector } from './mocks/google-sheets.mock.js'
 import { WhatsAppMockConnector } from './mocks/whatsapp.mock.js'
@@ -27,12 +28,25 @@ export function isMessagingProvider(provider: Provider): provider is MessagingPr
   return (MESSAGING_PROVIDERS as readonly string[]).includes(provider)
 }
 
+interface AccountingContext {
+  supabase?: SupabaseClient
+  connectedAccountId?: string
+}
+
 export function getAccountingConnector(
   provider: AccountingProvider,
-  credentials: ConnectorCredentials
+  credentials: ConnectorCredentials,
+  context?: AccountingContext
 ): AccountingConnector {
   switch (provider) {
     case 'zoho_books':
+      // Route on credentials, not on an env flag.
+      // Real Zoho OAuth credentials always carry client_id; mock/test credentials do not.
+      // An env flag as a secondary gate creates a silent-fallback risk: real credentials
+      // in the DB get the mock connector if the flag is forgotten, and no error is raised.
+      if (credentials.client_id) {
+        return new ZohoBooksConnector(credentials, context?.supabase, context?.connectedAccountId)
+      }
       return new ZohoBooksMockConnector(credentials)
     case 'tally':
       return new TallyMockConnector(credentials)
@@ -53,9 +67,9 @@ export function getMessagingConnector(
 ): MessagingConnector {
   switch (provider) {
     case 'whatsapp': {
-      // Use the real connector when WHATSAPP_ENABLED=true and credentials have an access token.
-      // Falls back to the mock so dev/test flows keep working without live credentials.
-      if (process.env.WHATSAPP_ENABLED === 'true' && credentials.access_token) {
+      // Route on credentials — same principle as zoho_books above.
+      // Real WhatsApp credentials always carry access_token; mock credentials do not.
+      if (credentials.access_token) {
         return new WhatsAppConnector(credentials, context?.supabase, context?.businessId)
       }
       return new WhatsAppMockConnector(credentials)
