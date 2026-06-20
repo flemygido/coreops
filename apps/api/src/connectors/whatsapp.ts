@@ -4,7 +4,8 @@
 //   sendSessionMessage()  — free-form text, only valid inside an open 24h CSW
 //   sendTemplateMessage() — pre-approved utility template, works cold (no window)
 // sendMessage() dispatches based on live window state in the DB.
-// Feature-flagged: WHATSAPP_ENABLED=true required; falls back to mock otherwise.
+// Routing: the registry resolves this connector when access_token is present in
+// credentials; mock credentials (no access_token) get WhatsAppMockConnector instead.
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type {

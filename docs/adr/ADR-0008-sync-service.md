@@ -85,6 +85,22 @@ Sync is intentionally not exposed as an HTTP endpoint. Reasons:
 
 Every call to `syncBusiness()` fetches the full page set from Zoho (customers, invoices, payments). Given the pilot scale (tens of customers, hundreds of invoices), full-fetch is cheaper than tracking a delta cursor. Incremental sync (Zoho's `last_modified_time` filter or webhooks) is a post-pilot optimisation.
 
+### 9. Credential-based connector routing (trust/safety fix — 2026-06-20)
+
+**The gap this closes:** The original registry used an env flag (`ZOHO_ENABLED=true`) as the primary gate for routing to the real connector. A business with a real `connected_accounts` row — encrypted Zoho OAuth credentials — would still receive the mock connector if the flag was not set. The mock silently wrote fabricated data (ZB-CUST-001, ZB-INV-001) into the pilot business's tables. `syncBusiness()` returned `status: 'success'`, reported `invoices_synced: 3`, and `getReceivablesState()` returned `total_overdue: ₹95,000` — all drawn from mock data. No error was raised. The correct total was ₹1,95,000 across 4 real invoices. This went undetected for an entire development session.
+
+**The fix:** The env flag is removed from routing entirely. `getAccountingConnector()` now routes to `ZohoBooksConnector` when `credentials.client_id` is present, and to `ZohoBooksMockConnector` when it is absent. The credentials **are** the source of truth; no flag can be forgotten. The same applies to `getMessagingConnector()` / WhatsApp (`credentials.access_token`).
+
+**Why credentials work as discriminator:** Real Zoho OAuth credentials from `setup-pilot.mts` always carry `client_id`, `client_secret`, and `refresh_token`. Mock/test credentials (either empty objects or unit-test stubs) do not carry these fields. There is no legitimate production reason to hold real Zoho credentials and route to the mock — that path should never exist.
+
+**Proof:** `apps/api/src/connectors/__tests__/registry.test.ts` includes three tests that assert:
+
+1. `client_id` present + no `ZOHO_ENABLED` → `ZohoBooksConnector` (real)
+2. No `client_id` → `ZohoBooksMockConnector`
+3. `ZOHO_ENABLED=true` + no `client_id` → `ZohoBooksMockConnector` (flag alone cannot promote to real)
+
+The `WHATSAPP_ENABLED` flag is removed on the same grounds.
+
 ---
 
 ## Consequences

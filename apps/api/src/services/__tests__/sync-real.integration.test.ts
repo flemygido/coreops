@@ -93,9 +93,13 @@ describe.skipIf(!shouldRun)('syncBusiness() — live Zoho + local Supabase', () 
     expect(result.provider).toBe('zoho_books')
     expect(result.error_count).toBe(0)
     expect(result.errors).toHaveLength(0)
+    // Zoho trial has 3 contacts and 4 invoices — assert exact counts so a
+    // silent connector regression (e.g. falling back to mock) fails loudly.
+    expect(result.customers_synced).toBe(3)
+    expect(result.invoices_synced).toBe(4)
   }, 30_000)
 
-  it('syncs at least 1 customer and 1 invoice', async (ctx) => {
+  it('writes exactly 3 customers and 4 invoices to Postgres', async (ctx) => {
     if (!setup) return ctx.skip()
     const { adminSupabase, businessId } = setup
     const { data: customers } = await adminSupabase
@@ -110,13 +114,13 @@ describe.skipIf(!shouldRun)('syncBusiness() — live Zoho + local Supabase', () 
     console.log('[sync live] customers in DB:', customers?.length)
     console.log('[sync live] invoices in DB:', invoices?.length)
 
-    expect((customers ?? []).length).toBeGreaterThanOrEqual(1)
-    expect((invoices ?? []).length).toBeGreaterThanOrEqual(1)
+    expect((customers ?? []).length).toBe(3)
+    expect((invoices ?? []).length).toBe(4)
   })
 
   // ── 2. Receivables state reflects live Zoho data ──────────────────────────
 
-  it('getReceivablesState() returns live data with at least 1 overdue invoice', async (ctx) => {
+  it('getReceivablesState() returns ₹1,95,000 overdue across 4 invoices', async (ctx) => {
     if (!setup) return ctx.skip()
     const { adminSupabase, businessId } = setup
     const state = await getReceivablesState(adminSupabase, businessId)
@@ -126,14 +130,18 @@ describe.skipIf(!shouldRun)('syncBusiness() — live Zoho + local Supabase', () 
       count_overdue: state.count_overdue,
     })
     expect(state.business_id).toBe(businessId)
-    expect(state.total_overdue).toBeGreaterThan(0)
-    expect(state.count_overdue).toBeGreaterThanOrEqual(1)
-    expect(state.overdue_invoices.length).toBeGreaterThanOrEqual(1)
-    const first = state.overdue_invoices[0]
-    expect(first.invoice_number).toBeTruthy()
-    expect(first.customer_name).toBeTruthy()
-    expect(first.amount).toBeGreaterThan(0)
-    expect(first.days_overdue).toBeGreaterThan(0)
+    // Zoho trial: 4 invoices all overdue, totalling ₹1,95,000.
+    // INV-000001 ₹72,000 + INV-000002 ₹65,000 + INV-000003 ₹43,000 + INV-000004 ₹15,000.
+    expect(state.total_overdue).toBe(195000)
+    expect(state.count_overdue).toBe(4)
+    expect(state.overdue_invoices).toHaveLength(4)
+    // Spot-check one invoice per customer to confirm real data, not mock data.
+    const numbers = state.overdue_invoices.map((i) => i.invoice_number).sort()
+    expect(numbers).toEqual(['INV-000001', 'INV-000002', 'INV-000003', 'INV-000004'])
+    for (const inv of state.overdue_invoices) {
+      expect(inv.customer_name).toBeTruthy()
+      expect(inv.days_overdue).toBeGreaterThan(0)
+    }
   })
 
   // ── 3. Idempotency — second sync leaves row counts unchanged ──────────────

@@ -7,8 +7,8 @@
 // back to connected_accounts.credentials_encrypted so successive daily syncs
 // reuse the token instead of burning Zoho's token-generation quota.
 //
-// Feature-flagged: ZOHO_ENABLED=true routes through this connector; otherwise
-// the mock is used so all tests without live credentials keep working.
+// Routing: the registry resolves this connector when client_id is present in
+// credentials; mock credentials (no client_id) get ZohoBooksMockConnector instead.
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { encrypt } from '../lib/crypto.js'

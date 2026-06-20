@@ -7,6 +7,12 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { ZohoBooksConnector, ZohoBooksAuthError, ZohoBooksRateLimitError } from '../zoho-books.js'
 import type { ConnectorCredentials } from '../types.js'
 
+// Mock encrypt so token-persistence tests don't require ENCRYPTION_KEY in env.
+vi.mock('../../lib/crypto.js', () => ({
+  encrypt: vi.fn().mockImplementation((s: string) => `enc:${s}`),
+  decrypt: vi.fn().mockImplementation((s: string) => s.replace(/^enc:/, '')),
+}))
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function makeCreds(overrides: Partial<ConnectorCredentials> = {}): ConnectorCredentials {
